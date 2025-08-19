@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Configure axios base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+axios.defaults.baseURL = API_BASE_URL;
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -28,38 +32,49 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Simulate login API call
-      // In a real app, this would make an actual API call to your backend
-      if (email && password) {
-        const token = 'fake-jwt-token';
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('userEmail', email);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser({ email });
-        return { success: true };
-      } else {
-        throw new Error('Invalid credentials');
-      }
+      const response = await axios.post('/api/auth/login', { email, password });
+      const { token, user } = response.data;
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userEmail', user.email);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(user);
+      return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      const errorMessage = error.response?.data?.error || 'Login failed';
+      return { success: false, error: errorMessage };
     }
   };
 
-  const signup = async (email, password) => {
+  const signup = async (email, password, name = '') => {
     try {
-      // Simulate signup API call
-      if (email && password) {
-        const token = 'fake-jwt-token';
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('userEmail', email);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser({ email });
-        return { success: true };
-      } else {
-        throw new Error('Invalid input');
-      }
+      const response = await axios.post('/api/auth/register', { email, password, name });
+      const { token, user } = response.data;
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userEmail', user.email);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(user);
+      return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      const errorMessage = error.response?.data?.error || 'Signup failed';
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Handle Google OAuth callback
+  const handleGoogleCallback = async (token) => {
+    try {
+      localStorage.setItem('authToken', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Get user profile
+      const response = await axios.get('/api/auth/profile');
+      setUser(response.data.user);
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Google authentication failed';
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -75,7 +90,8 @@ export const AuthProvider = ({ children }) => {
     login,
     signup,
     logout,
-    loading
+    loading,
+    handleGoogleCallback
   };
 
   return (

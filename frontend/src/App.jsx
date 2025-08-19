@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
+import GoogleCallback from './pages/GoogleCallback';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -49,6 +50,9 @@ function App() {
                   <AuthPage />
                 </PublicRoute>
               } />
+              
+              {/* Google OAuth Callback */}
+              <Route path="/auth/google/callback" element={<GoogleCallback />} />
               
               {/* Protected Routes */}
               <Route path="/dashboard" element={
