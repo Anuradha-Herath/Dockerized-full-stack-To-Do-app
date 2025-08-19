@@ -115,9 +115,11 @@ const Dashboard = () => {
 
   // Handle add task with category
   const handleAddTask = (options = {}) => {
+    console.log('handleAddTask called with options:', options);
     setEditingTask(null);
     setInitialCategory(options.category || null);
     setShowTaskModal(true);
+    console.log('Task modal should now show, showTaskModal:', true);
   };
 
   // Filter and search tasks
@@ -206,6 +208,8 @@ const Dashboard = () => {
   const stats = getStats();
 
   useEffect(() => {
+    console.log('Dashboard mounted, user:', user);
+    console.log('Auth token:', localStorage.getItem('authToken'));
     fetchTasks();
   }, []);
 
@@ -301,6 +305,8 @@ const Dashboard = () => {
             </div>
           )}
         </div>
+
+  
 
         {/* Floating Action Button */}
         <FloatingActionButton 

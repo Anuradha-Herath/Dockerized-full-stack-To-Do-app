@@ -31,15 +31,20 @@ const FloatingActionButton = ({ onClick, isDark }) => {
     }
   ];
 
-  const handleMainClick = () => {
+  const handleMainClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Main FAB clicked, isExpanded:', isExpanded);
     if (isExpanded) {
       setIsExpanded(false);
     } else {
+      console.log('Calling onClick handler');
       onClick();
     }
   };
 
   const handleQuickAction = (action) => {
+    console.log('Quick action clicked');
     action();
     setIsExpanded(false);
   };
@@ -55,7 +60,13 @@ const FloatingActionButton = ({ onClick, isDark }) => {
       )}
 
       {/* Floating Action Button Container */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-20 md:bottom-6 right-6 z-[60]"
+           style={{ 
+             pointerEvents: 'auto',
+             position: 'fixed',
+             zIndex: 9999 
+           }}
+      >
         
         {/* Quick Action Buttons */}
         {isExpanded && (
@@ -103,8 +114,13 @@ const FloatingActionButton = ({ onClick, isDark }) => {
               isExpanded
                 ? 'bg-red-500 hover:bg-red-600 rotate-45'
                 : 'bg-primary-600 hover:bg-primary-700'
-            } text-white group`}
+            } text-white group cursor-pointer`}
             title={isExpanded ? 'Close' : 'Add new task'}
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 10000,
+              position: 'relative'
+            }}
           >
             {isExpanded ? (
               <X className="w-6 h-6 transition-transform duration-300" />

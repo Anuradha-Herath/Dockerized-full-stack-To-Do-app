@@ -200,7 +200,7 @@ router.post('/', auth, taskValidation, handleValidationErrors, async (req, res) 
       description,
       priority: priority || 'medium',
       dueDate: dueDate ? new Date(dueDate) : null,
-      category: category || 'personal',
+      category: category || 'all',
       tags: tags || [],
       user: req.user._id
     });

@@ -47,8 +47,8 @@ const taskValidation = [
     .withMessage('Due date must be a valid date'),
   body('category')
     .optional()
-    .isIn(['personal', 'work', 'shopping', 'health', 'other'])
-    .withMessage('Category must be one of: personal, work, shopping, health, other')
+    .isIn(['all', 'personal', 'work', 'important', 'today'])
+    .withMessage('Category must be one of: all, personal, work, important, today')
 ];
 
 const updateTaskValidation = [
@@ -76,8 +76,8 @@ const updateTaskValidation = [
     .withMessage('Due date must be a valid date'),
   body('category')
     .optional()
-    .isIn(['personal', 'work', 'shopping', 'health', 'other'])
-    .withMessage('Category must be one of: personal, work, shopping, health, other')
+    .isIn(['all', 'personal', 'work', 'important', 'today'])
+    .withMessage('Category must be one of: all, personal, work, important, today')
 ];
 
 const passwordChangeValidation = [
