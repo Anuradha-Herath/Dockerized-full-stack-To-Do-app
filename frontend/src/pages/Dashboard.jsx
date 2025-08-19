@@ -2,36 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Filter, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
-  Trash2, 
-  Edit3,
-  Moon,
-  Sun,
-  LogOut,
-  User,
-  Settings,
-  Target,
-  TrendingUp
-} from 'lucide-react';
 import { format, isToday, isThisWeek, isPast } from 'date-fns';
 import axios from 'axios';
+
+// Modern Components
+import TopNavigation from '../components/TopNavigation';
+import Sidebar from '../components/Sidebar';
+import TaskCard from '../components/TaskCard';
 import TaskModal from '../components/TaskModal';
-import ProgressBar from '../components/ProgressBar';
+import FloatingActionButton from '../components/FloatingActionButton';
+import EmptyState from '../components/EmptyState';
+import LoadingSpinner, { TaskCardSkeleton } from '../components/LoadingSpinner';
 import MobileNavigation from '../components/MobileNavigation';
 
 const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all'); // all, today, week, completed
+  const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [initialCategory, setInitialCategory] = useState(null);
 
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -44,7 +36,6 @@ const Dashboard = () => {
       const response = await axios.get('/api/tasks');
       console.log('📋 Frontend received tasks response:', response.data);
       
-      // Handle both array response and object with tasks property
       const tasksData = Array.isArray(response.data) 
         ? response.data 
         : Array.isArray(response.data.tasks) 
@@ -55,30 +46,34 @@ const Dashboard = () => {
       setError(null);
     } catch (err) {
       setError('Failed to fetch tasks');
-      setTasks([]); // Set empty array on error
+      setTasks([]);
       console.error('Error fetching tasks:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Quick add task
-  const quickAddTask = async () => {
-    if (!newTaskTitle.trim()) return;
-
+  // Add/Update task
+  const handleSaveTask = async (taskData) => {
     try {
-      const response = await axios.post('/api/tasks', {
-        title: newTaskTitle.trim(),
-        description: '',
-        priority: 'medium',
-        dueDate: new Date().toISOString().split('T')[0]
-      });
-      setTasks(prev => [response.data, ...prev]);
-      setNewTaskTitle('');
+      if (editingTask) {
+        const response = await axios.put(`/api/tasks/${editingTask._id}`, taskData);
+        setTasks(prev => 
+          prev.map(task => 
+            task._id === editingTask._id ? response.data : task
+          )
+        );
+      } else {
+        const response = await axios.post('/api/tasks', taskData);
+        setTasks(prev => [response.data, ...prev]);
+      }
+      setShowTaskModal(false);
+      setEditingTask(null);
+      setInitialCategory(null);
       setError(null);
     } catch (err) {
-      setError('Failed to add task');
-      console.error('Error adding task:', err);
+      setError(editingTask ? 'Failed to update task' : 'Failed to create task');
+      console.error('Error saving task:', err);
     }
   };
 
@@ -112,412 +107,206 @@ const Dashboard = () => {
     }
   };
 
-  // Filter tasks
-  const filteredTasks = Array.isArray(tasks) ? tasks.filter(task => {
-    if (filter === 'completed') return task.completed;
-    if (filter === 'today') return isToday(new Date(task.dueDate || task.createdAt));
-    if (filter === 'week') return isThisWeek(new Date(task.dueDate || task.createdAt));
-    return true;
-  }) : [];
-
-  // Calculate stats
-  const stats = {
-    total: Array.isArray(tasks) ? tasks.length : 0,
-    completed: Array.isArray(tasks) ? tasks.filter(t => t.completed).length : 0,
-    today: Array.isArray(tasks) ? tasks.filter(t => isToday(new Date(t.dueDate || t.createdAt))).length : 0,
-    overdue: Array.isArray(tasks) ? tasks.filter(t => !t.completed && t.dueDate && isPast(new Date(t.dueDate))).length : 0
+  // Handle edit task
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setShowTaskModal(true);
   };
 
-  const completionRate = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
+  // Handle add task with category
+  const handleAddTask = (options = {}) => {
+    setEditingTask(null);
+    setInitialCategory(options.category || null);
+    setShowTaskModal(true);
+  };
+
+  // Filter and search tasks
+  const getFilteredTasks = () => {
+    if (!Array.isArray(tasks)) return [];
+    
+    let filtered = tasks.filter(task => {
+      // Apply category filter
+      switch (filter) {
+        case 'completed':
+          if (!task.completed) return false;
+          break;
+        case 'today':
+          if (!isToday(new Date(task.dueDate || task.createdAt))) return false;
+          break;
+        case 'work':
+          if (task.category !== 'work') return false;
+          break;
+        case 'personal':
+          if (task.category !== 'personal') return false;
+          break;
+        case 'important':
+          if (task.priority !== 'high' && task.category !== 'important') return false;
+          break;
+        case 'archived':
+          if (!task.archived) return false;
+          break;
+        default:
+          // 'all' - no filter
+          break;
+      }
+      
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return (
+          task.title.toLowerCase().includes(query) ||
+          (task.description && task.description.toLowerCase().includes(query))
+        );
+      }
+      
+      return true;
+    });
+
+    // Sort tasks: incomplete first, then by priority, then by due date
+    return filtered.sort((a, b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      const aPriority = priorityOrder[a.priority] || 0;
+      const bPriority = priorityOrder[b.priority] || 0;
+      
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority;
+      }
+      
+      const aDate = new Date(a.dueDate || a.createdAt);
+      const bDate = new Date(b.dueDate || b.createdAt);
+      return aDate - bDate;
+    });
+  };
+
+  // Calculate stats
+  const getStats = () => {
+    if (!Array.isArray(tasks)) return {};
+    
+    const stats = {
+      total: tasks.length,
+      completed: tasks.filter(t => t.completed).length,
+      today: tasks.filter(t => isToday(new Date(t.dueDate || t.createdAt))).length,
+      work: tasks.filter(t => t.category === 'work').length,
+      personal: tasks.filter(t => t.category === 'personal').length,
+      important: tasks.filter(t => t.priority === 'high' || t.category === 'important').length,
+      archived: tasks.filter(t => t.archived).length,
+      overdue: tasks.filter(t => !t.completed && t.dueDate && isPast(new Date(t.dueDate))).length
+    };
+
+    stats.completionRate = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
+    
+    return stats;
+  };
+
+  const filteredTasks = getFilteredTasks();
+  const stats = getStats();
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      quickAddTask();
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-warning-100 text-warning-800 border-warning-200';
-      case 'low': return 'bg-secondary-100 text-secondary-800 border-secondary-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+  // Close modal handler
+  const handleCloseModal = () => {
+    setShowTaskModal(false);
+    setEditingTask(null);
+    setInitialCategory(null);
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      isDark ? 'bg-background-dark' : 'bg-background-light'
+    <div className={`min-h-screen transition-all duration-300 ${
+      isDark ? 'bg-gray-900' : 'bg-gray-50'
     }`}>
       
-      {/* Header */}
-      <header className={`${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-surface border-gray-200'
-      } border-b transition-colors duration-300`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className={`text-xl font-bold ${
-                  isDark ? 'text-white' : 'text-text-primary'
-                }`}>
-                  📝 TodoMaster
-                </h1>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDark 
-                    ? 'text-gray-300 hover:bg-gray-700' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              
-              <button
-                onClick={() => navigate('/profile')}
-                className={`hidden md:flex items-center px-3 py-1 rounded-full text-sm transition-colors duration-200 ${
-                  isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <User className="w-4 h-4 mr-2" />
-                {user?.email}
-              </button>
-              
-              <button
-                onClick={logout}
-                className={`hidden md:block p-2 rounded-lg transition-colors duration-200 ${
-                  isDark 
-                    ? 'text-gray-300 hover:bg-gray-700' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                title="Logout"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Top Navigation */}
+      <TopNavigation 
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
+
+      {/* Sidebar */}
+      <Sidebar 
+        isDark={isDark}
+        activeFilter={filter}
+        onFilterChange={setFilter}
+        stats={stats}
+      />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
-        
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className={`${
-            isDark ? 'bg-gray-800' : 'bg-surface'
-          } rounded-xl p-6 shadow-sm border ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          } transition-all duration-200 hover:shadow-md`}>
-            <div className="flex items-center">
-              <div className="p-2 bg-primary-100 rounded-lg">
-                <Target className="w-6 h-6 text-primary-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${
-                  isDark ? 'text-gray-400' : 'text-text-secondary'
-                }`}>Total Tasks</p>
-                <p className={`text-2xl font-bold ${
-                  isDark ? 'text-white' : 'text-text-primary'
-                }`}>{stats.total}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`${
-            isDark ? 'bg-gray-800' : 'bg-surface'
-          } rounded-xl p-6 shadow-sm border ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          } transition-all duration-200 hover:shadow-md`}>
-            <div className="flex items-center">
-              <div className="p-2 bg-secondary-100 rounded-lg">
-                <CheckCircle2 className="w-6 h-6 text-secondary-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${
-                  isDark ? 'text-gray-400' : 'text-text-secondary'
-                }`}>Completed</p>
-                <p className={`text-2xl font-bold ${
-                  isDark ? 'text-white' : 'text-text-primary'
-                }`}>{stats.completed}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`${
-            isDark ? 'bg-gray-800' : 'bg-surface'
-          } rounded-xl p-6 shadow-sm border ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          } transition-all duration-200 hover:shadow-md`}>
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${
-                  isDark ? 'text-gray-400' : 'text-text-secondary'
-                }`}>Today</p>
-                <p className={`text-2xl font-bold ${
-                  isDark ? 'text-white' : 'text-text-primary'
-                }`}>{stats.today}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`${
-            isDark ? 'bg-gray-800' : 'bg-surface'
-          } rounded-xl p-6 shadow-sm border ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          } transition-all duration-200 hover:shadow-md`}>
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <Clock className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${
-                  isDark ? 'text-gray-400' : 'text-text-secondary'
-                }`}>Overdue</p>
-                <p className={`text-2xl font-bold ${
-                  isDark ? 'text-white' : 'text-text-primary'
-                }`}>{stats.overdue}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <ProgressBar 
-          percentage={completionRate} 
-          isDark={isDark}
-          className="mb-8"
-        />
-
-        {/* Quick Add & Filters */}
-        <div className={`${
-          isDark ? 'bg-gray-800' : 'bg-surface'
-        } rounded-xl p-6 shadow-sm border ${
-          isDark ? 'border-gray-700' : 'border-gray-200'
-        } mb-8`}>
+      <main className="lg:ml-64 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* Quick Add */}
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1">
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Add a new task..."
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-primary-500'
-                    : 'bg-white border-gray-300 text-text-primary placeholder-gray-500 focus:border-primary-500'
-                } focus:ring-2 focus:ring-primary-500 focus:ring-opacity-20 focus:outline-none`}
-              />
-            </div>
-            <button
-              onClick={quickAddTask}
-              disabled={!newTaskTitle.trim()}
-              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:transform-none"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setShowTaskModal(true)}
-              className={`px-6 py-3 rounded-lg border transition-all duration-200 ${
-                isDark
-                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-              } hover:shadow-md`}
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: 'all', label: 'All Tasks', icon: Target },
-              { key: 'today', label: 'Today', icon: Calendar },
-              { key: 'week', label: 'This Week', icon: TrendingUp },
-              { key: 'completed', label: 'Completed', icon: CheckCircle2 }
-            ].map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filter === key
-                    ? 'bg-primary-600 text-white'
-                    : isDark
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <Icon className="w-4 h-4 mr-2" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg animate-slide-down">
-            {error}
-            <button 
-              onClick={() => setError(null)}
-              className="ml-2 text-red-700 hover:text-red-900"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* Tasks List */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          </div>
-        ) : filteredTasks.length === 0 ? (
-          <div className={`text-center py-12 ${
-            isDark ? 'bg-gray-800' : 'bg-surface'
-          } rounded-xl shadow-sm border ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          }`}>
-            <div className="mb-4">
-              <CheckCircle2 className={`w-16 h-16 mx-auto ${
-                isDark ? 'text-gray-600' : 'text-gray-400'
-              }`} />
-            </div>
-            <h3 className={`text-xl font-semibold mb-2 ${
-              isDark ? 'text-white' : 'text-text-primary'
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className={`text-3xl font-bold ${
+              isDark ? 'text-white' : 'text-gray-900'
+            } mb-2`}>
+              {filter === 'all' ? 'All Tasks' :
+               filter === 'today' ? 'Today\'s Tasks' :
+               filter === 'work' ? 'Work Tasks' :
+               filter === 'personal' ? 'Personal Tasks' :
+               filter === 'important' ? 'Important Tasks' :
+               filter === 'completed' ? 'Completed Tasks' :
+               filter === 'archived' ? 'Archived Tasks' : 'Tasks'}
+            </h1>
+            <p className={`text-lg ${
+              isDark ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              {filter === 'completed' ? '🎉 No completed tasks yet!' : 
-               filter === 'today' ? '📅 No tasks for today!' :
-               filter === 'week' ? '📊 No tasks this week!' : 
-               '🚀 No tasks yet!'}
-            </h3>
-            <p className={`${
-              isDark ? 'text-gray-400' : 'text-text-secondary'
-            }`}>
-              {filter === 'all' ? 'Add your first task above to get started!' : 
-               `Switch to "All Tasks" to see your complete list.`}
+              {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+              {searchQuery && ` matching "${searchQuery}"`}
             </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredTasks.map(task => (
-              <div
-                key={task._id}
-                className={`${
-                  isDark ? 'bg-gray-800 border-gray-700' : 'bg-surface border-gray-200'
-                } rounded-xl p-6 border transition-all duration-200 hover:shadow-md ${
-                  task.completed ? 'opacity-75' : ''
-                } animate-slide-up`}
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg animate-slide-down flex items-center justify-between">
+              <span>{error}</span>
+              <button 
+                onClick={() => setError(null)}
+                className="ml-2 text-red-700 hover:text-red-900 font-bold"
               >
-                <div className="flex items-start gap-4">
-                  <button
-                    onClick={() => toggleTask(task._id, !task.completed)}
-                    className={`mt-1 p-1 rounded-full transition-colors duration-200 ${
-                      task.completed
-                        ? 'text-secondary-600 hover:text-secondary-700'
-                        : isDark
-                          ? 'text-gray-400 hover:text-secondary-500'
-                          : 'text-gray-400 hover:text-secondary-500'
-                    }`}
-                  >
-                    <CheckCircle2 className={`w-6 h-6 ${
-                      task.completed ? 'fill-current' : ''
-                    }`} />
-                  </button>
+                ×
+              </button>
+            </div>
+          )}
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className={`text-lg font-semibold ${
-                          isDark ? 'text-white' : 'text-text-primary'
-                        } ${task.completed ? 'line-through' : ''} mb-1`}>
-                          {task.title}
-                        </h3>
-                        
-                        {task.description && (
-                          <p className={`${
-                            isDark ? 'text-gray-300' : 'text-text-secondary'
-                          } mb-3`}>
-                            {task.description}
-                          </p>
-                        )}
+          {/* Tasks Content */}
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(6)].map((_, i) => (
+                <TaskCardSkeleton key={i} isDark={isDark} />
+              ))}
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <EmptyState 
+              isDark={isDark}
+              filter={filter}
+              onAddTask={handleAddTask}
+            />
+          ) : (
+            <div className="grid gap-4 md:gap-6">
+              {filteredTasks.map(task => (
+                <TaskCard
+                  key={task._id}
+                  task={task}
+                  isDark={isDark}
+                  onToggle={toggleTask}
+                  onEdit={handleEditTask}
+                  onDelete={deleteTask}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-sm">
-                          {task.priority && (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                              getPriorityColor(task.priority)
-                            }`}>
-                              {task.priority} priority
-                            </span>
-                          )}
-                          
-                          {task.dueDate && (
-                            <span className={`flex items-center ${
-                              isDark ? 'text-gray-400' : 'text-text-secondary'
-                            }`}>
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {format(new Date(task.dueDate), 'MMM dd, yyyy')}
-                            </span>
-                          )}
-
-                          <span className={`${
-                            isDark ? 'text-gray-400' : 'text-text-secondary'
-                          }`}>
-                            Created {format(new Date(task.createdAt), 'MMM dd, yyyy')}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => {
-                            setEditingTask(task);
-                            setShowTaskModal(true);
-                          }}
-                          className={`p-2 rounded-lg transition-colors duration-200 ${
-                            isDark
-                              ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
-                              : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'
-                          }`}
-                          title="Edit task"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => deleteTask(task._id)}
-                          className={`p-2 rounded-lg transition-colors duration-200 ${
-                            isDark
-                              ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
-                              : 'text-gray-500 hover:text-red-600 hover:bg-gray-100'
-                          }`}
-                          title="Delete task"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Floating Action Button */}
+        <FloatingActionButton 
+          onClick={handleAddTask}
+          isDark={isDark}
+        />
       </main>
 
       {/* Task Modal */}
@@ -525,34 +314,10 @@ const Dashboard = () => {
         <TaskModal
           task={editingTask}
           isOpen={showTaskModal}
-          onClose={() => {
-            setShowTaskModal(false);
-            setEditingTask(null);
-          }}
-          onSave={(taskData) => {
-            if (editingTask) {
-              // Update existing task
-              axios.put(`/api/tasks/${editingTask._id}`, taskData)
-                .then(response => {
-                  setTasks(prev => 
-                    prev.map(task => 
-                      task._id === editingTask._id ? response.data : task
-                    )
-                  );
-                })
-                .catch(err => setError('Failed to update task'));
-            } else {
-              // Create new task
-              axios.post('/api/tasks', taskData)
-                .then(response => {
-                  setTasks(prev => [response.data, ...prev]);
-                })
-                .catch(err => setError('Failed to create task'));
-            }
-            setShowTaskModal(false);
-            setEditingTask(null);
-          }}
+          onClose={handleCloseModal}
+          onSave={handleSaveTask}
           isDark={isDark}
+          initialCategory={initialCategory}
         />
       )}
 
@@ -561,5 +326,4 @@ const Dashboard = () => {
     </div>
   );
 };
-
 export default Dashboard;

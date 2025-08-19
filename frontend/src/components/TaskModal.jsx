@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Flag, AlignLeft } from 'lucide-react';
+import { X, Calendar, Flag, AlignLeft, Briefcase, User, Star, Inbox } from 'lucide-react';
 
-const TaskModal = ({ task, isOpen, onClose, onSave, isDark }) => {
+const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = null }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'medium',
-    dueDate: ''
+    dueDate: '',
+    category: 'all'
   });
   const [loading, setLoading] = useState(false);
 
@@ -16,17 +17,19 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark }) => {
         title: task.title || '',
         description: task.description || '',
         priority: task.priority || 'medium',
-        dueDate: task.dueDate ? task.dueDate.split('T')[0] : ''
+        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+        category: task.category || 'all'
       });
     } else {
       setFormData({
         title: '',
         description: '',
         priority: 'medium',
-        dueDate: new Date().toISOString().split('T')[0]
+        dueDate: new Date().toISOString().split('T')[0],
+        category: initialCategory || 'all'
       });
     }
-  }, [task]);
+  }, [task, initialCategory]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,6 +55,13 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark }) => {
   };
 
   if (!isOpen) return null;
+
+  const categories = [
+    { value: 'all', label: 'Inbox', icon: Inbox, color: 'text-blue-500' },
+    { value: 'work', label: 'Work', icon: Briefcase, color: 'text-purple-500' },
+    { value: 'personal', label: 'Personal', icon: User, color: 'text-pink-500' },
+    { value: 'important', label: 'Important', icon: Star, color: 'text-yellow-500' }
+  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -125,6 +135,37 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark }) => {
               rows={4}
               maxLength={500}
             />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className={`block text-sm font-medium mb-3 ${
+              isDark ? 'text-gray-300' : 'text-text-primary'
+            }`}>
+              <Inbox className="w-4 h-4 inline mr-1" />
+              Category
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {categories.map(({ value, label, icon: Icon, color }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleChange('category', value)}
+                  className={`flex items-center space-x-2 px-4 py-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                    formData.category === value
+                      ? isDark
+                        ? 'bg-primary-900/50 text-primary-300 border-primary-700'
+                        : 'bg-primary-50 text-primary-700 border-primary-200'
+                      : isDark
+                        ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${formData.category === value ? color : ''}`} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Priority */}
