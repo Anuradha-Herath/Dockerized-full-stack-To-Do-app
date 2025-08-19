@@ -14,6 +14,8 @@ const router = express.Router();
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
+    console.log('📋 Fetching tasks for user:', req.user._id);
+    
     const { 
       completed, 
       priority, 
@@ -26,6 +28,7 @@ router.get('/', auth, async (req, res) => {
     } = req.query;
 
     const filter = { user: req.user._id };
+    console.log('🔍 Filter being used:', filter);
 
     // Apply filters
     if (completed !== undefined) {
@@ -63,6 +66,9 @@ router.get('/', auth, async (req, res) => {
 
     const totalTasks = await Task.countDocuments(filter);
     const totalPages = Math.ceil(totalTasks / limitNum);
+
+    console.log(`📊 Found ${tasks.length} tasks for user ${req.user._id}`);
+    console.log('📋 Tasks found:', tasks.map(t => ({ id: t._id, title: t.title, user: t.user })));
 
     res.json({
       tasks,
@@ -186,6 +192,9 @@ router.post('/', auth, taskValidation, handleValidationErrors, async (req, res) 
   try {
     const { title, description, priority, dueDate, category, tags } = req.body;
 
+    console.log('➕ Creating task for user:', req.user._id);
+    console.log('📝 Task data:', { title, description, priority, dueDate, category });
+
     const task = new Task({
       title,
       description,
@@ -197,6 +206,8 @@ router.post('/', auth, taskValidation, handleValidationErrors, async (req, res) 
     });
 
     await task.save();
+    console.log('✅ Task created successfully:', { id: task._id, title: task.title, user: task.user });
+    
     res.status(201).json(task);
   } catch (error) {
     console.error('Create task error:', error);

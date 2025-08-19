@@ -24,9 +24,6 @@ import TaskModal from '../components/TaskModal';
 import ProgressBar from '../components/ProgressBar';
 import MobileNavigation from '../components/MobileNavigation';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-axios.defaults.baseURL = API_BASE_URL;
-
 const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +42,16 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/tasks');
-      // Ensure we always set an array
-      setTasks(Array.isArray(response.data) ? response.data : []);
+      console.log('📋 Frontend received tasks response:', response.data);
+      
+      // Handle both array response and object with tasks property
+      const tasksData = Array.isArray(response.data) 
+        ? response.data 
+        : Array.isArray(response.data.tasks) 
+          ? response.data.tasks 
+          : [];
+          
+      setTasks(tasksData);
       setError(null);
     } catch (err) {
       setError('Failed to fetch tasks');

@@ -58,6 +58,7 @@ const corsOptions = {
     
     const cleanOrigins = allowedOrigins.filter(Boolean);
     
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin || cleanOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -65,10 +66,15 @@ const corsOptions = {
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

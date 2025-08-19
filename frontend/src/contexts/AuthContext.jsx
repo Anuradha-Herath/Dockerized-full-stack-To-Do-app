@@ -21,13 +21,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on app start
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // For now, we'll simulate a user object
-      setUser({ email: localStorage.getItem('userEmail') || 'user@example.com' });
-    }
-    setLoading(false);
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        try {
+          // Validate token by fetching user profile
+          const response = await axios.get('/api/auth/profile');
+          setUser(response.data.user);
+        } catch (error) {
+          // Token is invalid, clear it
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userEmail');
+          delete axios.defaults.headers.common['Authorization'];
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email, password) => {

@@ -10,15 +10,20 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('🔑 Token decoded, userId:', decoded.userId);
+    
     const user = await User.findById(decoded.userId).select('-password');
     
     if (!user) {
+      console.log('❌ User not found for token userId:', decoded.userId);
       return res.status(401).json({ error: 'Invalid token. User not found.' });
     }
 
+    console.log('✅ User authenticated:', { id: user._id, email: user.email });
     req.user = user;
     next();
   } catch (error) {
+    console.log('🚫 Auth error:', error.message);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token.' });
     }
