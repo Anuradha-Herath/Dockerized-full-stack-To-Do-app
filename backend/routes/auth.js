@@ -130,6 +130,28 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// @route   GET /auth/profile
+// @desc    Get current user profile (alias for /me)
+// @access  Private
+router.get('/profile', auth, async (req, res) => {
+  try {
+    res.json({
+      user: {
+        id: req.user._id,
+        email: req.user.email,
+        name: req.user.name,
+        avatar: req.user.avatar,
+        preferences: req.user.preferences,
+        isEmailVerified: req.user.isEmailVerified,
+        lastLogin: req.user.lastLogin,
+        createdAt: req.user.createdAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   PUT /auth/profile
 // @desc    Update user profile
 // @access  Private

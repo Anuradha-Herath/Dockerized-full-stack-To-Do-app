@@ -26,8 +26,8 @@ app.use(helmet({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
@@ -35,8 +35,8 @@ const limiter = rateLimit({
 
 // Stricter rate limiting for auth routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 auth requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 50, // limit each IP to auth requests per windowMs
   message: {
     error: 'Too many authentication attempts, please try again later.'
   }
@@ -110,7 +110,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/auth', authLimiter, require('./routes/auth'));
+app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/auth', authLimiter, require('./routes/googleAuth'));
 app.use('/api/tasks', require('./routes/tasks'));
 
@@ -132,12 +132,13 @@ app.get('/api/docs', (req, res) => {
     description: 'Complete task management API with authentication',
     endpoints: {
       authentication: {
-        'POST /auth/register': 'Register new user',
-        'POST /auth/login': 'Login user',
-        'GET /auth/me': 'Get current user info',
-        'PUT /auth/profile': 'Update user profile',
-        'PUT /auth/change-password': 'Change password',
-        'DELETE /auth/account': 'Delete account',
+        'POST /api/auth/register': 'Register new user',
+        'POST /api/auth/login': 'Login user',
+        'GET /api/auth/me': 'Get current user info',
+        'GET /api/auth/profile': 'Get current user profile',
+        'PUT /api/auth/profile': 'Update user profile',
+        'PUT /api/auth/change-password': 'Change password',
+        'DELETE /api/auth/account': 'Delete account',
         'GET /auth/google': 'Start Google OAuth',
         'GET /auth/google/callback': 'Google OAuth callback'
       },
@@ -210,8 +211,8 @@ app.use('*', (req, res) => {
       'GET /',
       'GET /health',
       'GET /api/docs',
-      'POST /auth/register',
-      'POST /auth/login',
+      'POST /api/auth/register',
+      'POST /api/auth/login',
       'GET /auth/google',
       'GET /api/tasks'
     ]

@@ -45,10 +45,12 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/tasks');
-      setTasks(response.data);
+      // Ensure we always set an array
+      setTasks(Array.isArray(response.data) ? response.data : []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch tasks');
+      setTasks([]); // Set empty array on error
       console.error('Error fetching tasks:', err);
     } finally {
       setLoading(false);
@@ -106,19 +108,19 @@ const Dashboard = () => {
   };
 
   // Filter tasks
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = Array.isArray(tasks) ? tasks.filter(task => {
     if (filter === 'completed') return task.completed;
     if (filter === 'today') return isToday(new Date(task.dueDate || task.createdAt));
     if (filter === 'week') return isThisWeek(new Date(task.dueDate || task.createdAt));
     return true;
-  });
+  }) : [];
 
   // Calculate stats
   const stats = {
-    total: tasks.length,
-    completed: tasks.filter(t => t.completed).length,
-    today: tasks.filter(t => isToday(new Date(t.dueDate || t.createdAt))).length,
-    overdue: tasks.filter(t => !t.completed && t.dueDate && isPast(new Date(t.dueDate))).length
+    total: Array.isArray(tasks) ? tasks.length : 0,
+    completed: Array.isArray(tasks) ? tasks.filter(t => t.completed).length : 0,
+    today: Array.isArray(tasks) ? tasks.filter(t => isToday(new Date(t.dueDate || t.createdAt))).length : 0,
+    overdue: Array.isArray(tasks) ? tasks.filter(t => !t.completed && t.dueDate && isPast(new Date(t.dueDate))).length : 0
   };
 
   const completionRate = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
