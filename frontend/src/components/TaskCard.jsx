@@ -7,8 +7,23 @@ import {
   Flag,
   Clock,
   CheckCircle2,
-  Circle
+  Circle,
+  FolderOpen,
+  Inbox,
+  Briefcase,
+  User,
+  Star,
+  Archive,
+  CheckCircle,
+  Heart,
+  Home,
+  Book,
+  Music,
+  Camera,
+  Gamepad2,
+  Coffee
 } from 'lucide-react';
+import CategorySelector from './CategorySelector';
 
 const TaskCard = ({ 
   task, 
@@ -16,9 +31,75 @@ const TaskCard = ({
   onToggle, 
   onEdit, 
   onDelete,
-  onPriorityChange 
+  onPriorityChange,
+  onCategoryChange
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showCategorySelector, setShowCategorySelector] = useState(false);
+
+  const iconMap = {
+    Inbox, Calendar, Briefcase, User, Star, Heart, Home, Book,
+    Music, Camera, Gamepad2, Coffee, Archive, CheckCircle
+  };
+
+  const getColorClass = (color) => {
+    const colorMap = {
+      blue: 'text-blue-500',
+      green: 'text-green-500',
+      purple: 'text-purple-500',
+      pink: 'text-pink-500',
+      yellow: 'text-yellow-500',
+      red: 'text-red-500',
+      indigo: 'text-indigo-500',
+      teal: 'text-teal-500',
+      gray: 'text-gray-500'
+    };
+    return colorMap[color] || 'text-blue-500';
+  };
+
+  const getCategoryDisplay = () => {
+    if (task.category && task.category.name) {
+      // Custom category
+      const IconComponent = iconMap[task.category.icon] || Inbox;
+      return {
+        name: task.category.name,
+        icon: IconComponent,
+        color: getColorClass(task.category.color),
+        isCustom: true
+      };
+    } else if (task.categoryType) {
+      // Default category
+      const categoryMap = {
+        all: { name: 'Inbox', icon: Inbox, color: 'text-blue-500' },
+        today: { name: 'Today', icon: Calendar, color: 'text-green-500' },
+        work: { name: 'Work', icon: Briefcase, color: 'text-purple-500' },
+        personal: { name: 'Personal', icon: User, color: 'text-pink-500' },
+        important: { name: 'Important', icon: Star, color: 'text-yellow-500' },
+        completed: { name: 'Completed', icon: CheckCircle, color: 'text-green-500' },
+        archived: { name: 'Archived', icon: Archive, color: 'text-gray-500' }
+      };
+      const category = categoryMap[task.categoryType] || categoryMap.all;
+      return {
+        name: category.name,
+        icon: category.icon,
+        color: category.color,
+        isCustom: false
+      };
+    }
+    return {
+      name: 'Inbox',
+      icon: Inbox,
+      color: 'text-blue-500',
+      isCustom: false
+    };
+  };
+
+  const categoryDisplay = getCategoryDisplay();
+
+  const handleCategoryChange = (category, data) => {
+    setShowCategorySelector(false);
+    onCategoryChange?.(task, category, data);
+  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -131,6 +212,23 @@ const TaskCard = ({
             {/* Meta Information */}
             <div className="flex items-center space-x-4 mt-3">
               
+              {/* Category */}
+              <div className="flex items-center space-x-1">
+                <categoryDisplay.icon className={`h-4 w-4 ${categoryDisplay.color}`} />
+                <span className={`text-xs font-medium ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  {categoryDisplay.name}
+                </span>
+                {categoryDisplay.isCustom && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    Custom
+                  </span>
+                )}
+              </div>
+              
               {/* Due Date */}
               {task.dueDate && (
                 <div className={`flex items-center space-x-1 text-xs ${
@@ -209,6 +307,21 @@ const TaskCard = ({
                   
                   <button
                     onClick={() => {
+                      setShowCategorySelector(true);
+                      setShowMenu(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
+                      isDark 
+                        ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    <span>Move to...</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
                       onDelete(task._id);
                       setShowMenu(false);
                     }}
@@ -227,6 +340,16 @@ const TaskCard = ({
           </div>
         </div>
       </div>
+
+      {/* Category Selector Modal */}
+      <CategorySelector
+        isOpen={showCategorySelector}
+        onClose={() => setShowCategorySelector(false)}
+        onSelectCategory={handleCategoryChange}
+        selectedTasks={[task]}
+        isDark={isDark}
+        title="Move Task to Category"
+      />
 
       {/* Progress bar for subtasks (if applicable) */}
       {task.subtasks && task.subtasks.length > 0 && (

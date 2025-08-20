@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Flag, AlignLeft, Briefcase, User, Star, Inbox } from 'lucide-react';
+import { 
+  X, Calendar, Flag, AlignLeft, Briefcase, User, Star, Inbox,
+  Heart, Home, Book, Music, Camera, Gamepad2, Coffee, Archive, CheckCircle
+} from 'lucide-react';
+import { useCategories } from '../contexts/CategoryContext';
 
 const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = null }) => {
+  const { categories } = useCategories();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -13,12 +18,22 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = nu
 
   useEffect(() => {
     if (task) {
+      // Handle existing task - determine category value
+      let categoryValue = 'all';
+      if (task.category && task.category._id) {
+        // Custom category
+        categoryValue = task.category._id;
+      } else if (task.categoryType) {
+        // Default category
+        categoryValue = task.categoryType;
+      }
+      
       setFormData({
         title: task.title || '',
         description: task.description || '',
         priority: task.priority || 'medium',
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
-        category: task.category || 'all'
+        category: categoryValue
       });
     } else {
       setFormData({
@@ -37,13 +52,40 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = nu
 
     setLoading(true);
     try {
+      // Transform category data for backend
+      const categoryData = transformCategoryForBackend(formData.category);
+      
       await onSave({
         ...formData,
+        ...categoryData,
         title: formData.title.trim(),
         description: formData.description.trim()
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const transformCategoryForBackend = (categoryId) => {
+    // Find the category in the categories list
+    const selectedCategory = categories.find(cat => cat.id === categoryId);
+    
+    if (!selectedCategory) {
+      return { categoryType: 'all' };
+    }
+    
+    if (selectedCategory.isCustom) {
+      // Custom category - send as ObjectId reference
+      return {
+        category: selectedCategory.id,
+        categoryType: 'custom'
+      };
+    } else {
+      // Default category - send as categoryType
+      return {
+        categoryType: selectedCategory.id,
+        category: undefined // Don't send category field for default categories
+      };
     }
   };
 
@@ -56,12 +98,26 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = nu
 
   if (!isOpen) return null;
 
-  const categories = [
-    { value: 'all', label: 'Inbox', icon: Inbox, color: 'text-blue-500' },
-    { value: 'work', label: 'Work', icon: Briefcase, color: 'text-purple-500' },
-    { value: 'personal', label: 'Personal', icon: User, color: 'text-pink-500' },
-    { value: 'important', label: 'Important', icon: Star, color: 'text-yellow-500' }
-  ];
+  // Get icon map for displaying categories
+  const iconMap = {
+    Inbox, Calendar, Briefcase, User, Star, Heart, Home, Book, 
+    Music, Camera, Gamepad2, Coffee, Archive, CheckCircle
+  };
+
+  const getColorClass = (color) => {
+    const colorMap = {
+      blue: 'text-blue-500',
+      green: 'text-green-500',
+      purple: 'text-purple-500',
+      pink: 'text-pink-500',
+      yellow: 'text-yellow-500',
+      red: 'text-red-500',
+      indigo: 'text-indigo-500',
+      teal: 'text-teal-500',
+      gray: 'text-gray-500'
+    };
+    return colorMap[color] || 'text-blue-500';
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -145,26 +201,31 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = nu
               <Inbox className="w-4 h-4 inline mr-1" />
               Category
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              {categories.map(({ value, label, icon: Icon, color }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => handleChange('category', value)}
-                  className={`flex items-center space-x-2 px-4 py-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
-                    formData.category === value
-                      ? isDark
-                        ? 'bg-primary-900/50 text-primary-300 border-primary-700'
-                        : 'bg-primary-50 text-primary-700 border-primary-200'
-                      : isDark
-                        ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${formData.category === value ? color : ''}`} />
-                  <span>{label}</span>
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
+              {categories.map((category) => {
+                const IconComponent = iconMap[category.icon] || Inbox;
+                const colorClass = getColorClass(category.color);
+                
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => handleChange('category', category.id)}
+                    className={`flex items-center space-x-2 px-4 py-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                      formData.category === category.id
+                        ? isDark
+                          ? 'bg-primary-900/50 text-primary-300 border-primary-700'
+                          : 'bg-primary-50 text-primary-700 border-primary-200'
+                        : isDark
+                          ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+                          : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <IconComponent className={`w-4 h-4 ${formData.category === category.id ? colorClass : ''}`} />
+                    <span>{category.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

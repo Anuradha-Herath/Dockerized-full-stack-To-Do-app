@@ -1,6 +1,8 @@
 const express = require('express');
 const Task = require('../models/Task');
+const Category = require('../models/Category');
 const auth = require('../middleware/auth');
+const mongoose = require('mongoose');
 const {
   taskValidation,
   updateTaskValidation,
@@ -20,6 +22,7 @@ router.get('/', auth, async (req, res) => {
       completed, 
       priority, 
       category, 
+      categoryType,
       dueDate, 
       page = 1, 
       limit = 50,
@@ -38,7 +41,15 @@ router.get('/', auth, async (req, res) => {
       filter.priority = priority;
     }
     if (category) {
-      filter.category = category;
+      // Handle both ObjectId and string categories
+      if (mongoose.Types.ObjectId.isValid(category)) {
+        filter.category = category;
+      } else {
+        filter.categoryType = category;
+      }
+    }
+    if (categoryType) {
+      filter.categoryType = categoryType;
     }
     if (dueDate) {
       const date = new Date(dueDate);
@@ -58,20 +69,53 @@ router.get('/', auth, async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    const tasks = await Task.find(filter)
+    // Find tasks first without population to handle legacy data
+    let tasks = await Task.find(filter)
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
       .lean();
 
+    // Handle legacy tasks and populate only valid ObjectId categories
+    const processedTasks = await Promise.all(tasks.map(async (task) => {
+      // Handle legacy category data
+      if (!task.categoryType) {
+        if (typeof task.category === 'string') {
+          task.categoryType = task.category;
+          task.category = null;
+        } else {
+          task.categoryType = 'all';
+        }
+      }
+
+      // If category is a valid ObjectId, populate it
+      if (task.category && mongoose.Types.ObjectId.isValid(task.category)) {
+        try {
+          const category = await Category.findById(task.category).select('name color icon').lean();
+          if (category) {
+            task.category = category;
+          } else {
+            task.category = null;
+          }
+        } catch (error) {
+          console.log('Error populating category:', error);
+          task.category = null;
+        }
+      } else {
+        task.category = null;
+      }
+
+      return task;
+    }));
+
     const totalTasks = await Task.countDocuments(filter);
     const totalPages = Math.ceil(totalTasks / limitNum);
 
-    console.log(`📊 Found ${tasks.length} tasks for user ${req.user._id}`);
-    console.log('📋 Tasks found:', tasks.map(t => ({ id: t._id, title: t.title, user: t.user })));
+    console.log(`📊 Found ${processedTasks.length} tasks for user ${req.user._id}`);
+    console.log('📋 Tasks found:', processedTasks.map(t => ({ id: t._id, title: t.title, user: t.user })));
 
     res.json({
-      tasks,
+      tasks: processedTasks,
       pagination: {
         currentPage: pageNum,
         totalPages,
@@ -190,27 +234,67 @@ router.get('/:id', auth, async (req, res) => {
 // @access  Private
 router.post('/', auth, taskValidation, handleValidationErrors, async (req, res) => {
   try {
-    const { title, description, priority, dueDate, category, tags } = req.body;
+    const { title, description, priority, dueDate, category, categoryType, tags } = req.body;
 
     console.log('➕ Creating task for user:', req.user._id);
-    console.log('📝 Task data:', { title, description, priority, dueDate, category });
+    console.log('📝 Task data received:', req.body);
+    console.log('📝 Parsed task data:', { title, description, priority, dueDate, category, categoryType });
+
+    // Determine category assignment
+    let taskCategory = null;
+    let taskCategoryType = categoryType || 'all';
+
+    if (category) {
+      if (mongoose.Types.ObjectId.isValid(category)) {
+        // It's a custom category
+        const categoryExists = await Category.findById(category);
+        if (categoryExists && categoryExists.user.toString() === req.user._id.toString()) {
+          taskCategory = category;
+          taskCategoryType = 'custom';
+        } else {
+          console.log('❌ Category not found or not owned by user:', category);
+        }
+      } else {
+        // It's a default category type
+        taskCategoryType = category;
+        taskCategory = null;
+      }
+    }
 
     const task = new Task({
       title,
       description,
       priority: priority || 'medium',
       dueDate: dueDate ? new Date(dueDate) : null,
-      category: category || 'all',
+      category: taskCategory,
+      categoryType: taskCategoryType,
       tags: tags || [],
       user: req.user._id
     });
 
+    console.log('💾 Saving task with data:', {
+      title: task.title,
+      category: task.category,
+      categoryType: task.categoryType,
+      user: task.user
+    });
+
     await task.save();
+    
+    // Populate category info before sending response
+    await task.populate('category', 'name color icon');
+    
     console.log('✅ Task created successfully:', { id: task._id, title: task.title, user: task.user });
     
     res.status(201).json(task);
   } catch (error) {
     console.error('Create task error:', error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ error: errors.join(', ') });
+    }
+    
     res.status(500).json({ error: 'Server error while creating task' });
   }
 });
@@ -227,11 +311,29 @@ router.put('/:id', auth, updateTaskValidation, handleValidationErrors, async (re
       updates.dueDate = new Date(updates.dueDate);
     }
 
+    // Handle category assignment
+    if (updates.category !== undefined) {
+      if (mongoose.Types.ObjectId.isValid(updates.category)) {
+        // It's a custom category
+        const categoryExists = await Category.findById(updates.category);
+        if (categoryExists && categoryExists.user.toString() === req.user._id.toString()) {
+          updates.category = updates.category;
+          updates.categoryType = 'custom';
+        } else {
+          return res.status(400).json({ error: 'Invalid category' });
+        }
+      } else {
+        // It's a default category type
+        updates.category = null;
+        updates.categoryType = updates.category;
+      }
+    }
+
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       updates,
       { new: true, runValidators: true }
-    );
+    ).populate('category', 'name color icon');
 
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
@@ -276,6 +378,23 @@ router.post('/bulk-update', auth, async (req, res) => {
       return res.status(400).json({ error: 'Task IDs array is required' });
     }
 
+    // Handle category assignment in bulk updates
+    if (updates.category !== undefined) {
+      if (mongoose.Types.ObjectId.isValid(updates.category)) {
+        // It's a custom category
+        const categoryExists = await Category.findById(updates.category);
+        if (categoryExists && categoryExists.user.toString() === req.user._id.toString()) {
+          updates.categoryType = 'custom';
+        } else {
+          return res.status(400).json({ error: 'Invalid category' });
+        }
+      } else {
+        // It's a default category type
+        updates.categoryType = updates.category;
+        updates.category = null;
+      }
+    }
+
     const result = await Task.updateMany(
       { 
         _id: { $in: taskIds },
@@ -292,6 +411,60 @@ router.post('/bulk-update', auth, async (req, res) => {
   } catch (error) {
     console.error('Bulk update error:', error);
     res.status(500).json({ error: 'Server error during bulk update' });
+  }
+});
+
+// @route   POST /api/tasks/move-to-category
+// @desc    Move tasks to a specific category
+// @access  Private
+router.post('/move-to-category', auth, async (req, res) => {
+  try {
+    const { taskIds, categoryId, categoryType } = req.body;
+
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      return res.status(400).json({ error: 'Task IDs array is required' });
+    }
+
+    let updateData = {};
+
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+      // Moving to custom category
+      const categoryExists = await Category.findById(categoryId);
+      if (!categoryExists || categoryExists.user.toString() !== req.user._id.toString()) {
+        return res.status(400).json({ error: 'Invalid category' });
+      }
+      updateData.category = categoryId;
+      updateData.categoryType = 'custom';
+    } else if (categoryType) {
+      // Moving to default category
+      updateData.category = null;
+      updateData.categoryType = categoryType;
+    } else {
+      return res.status(400).json({ error: 'Either categoryId or categoryType is required' });
+    }
+
+    const result = await Task.updateMany(
+      { 
+        _id: { $in: taskIds },
+        user: req.user._id
+      },
+      updateData
+    );
+
+    // Get updated tasks with populated category info
+    const updatedTasks = await Task.find({
+      _id: { $in: taskIds },
+      user: req.user._id
+    }).populate('category', 'name color icon');
+
+    res.json({
+      message: `${result.modifiedCount} tasks moved successfully`,
+      modifiedCount: result.modifiedCount,
+      tasks: updatedTasks
+    });
+  } catch (error) {
+    console.error('Move to category error:', error);
+    res.status(500).json({ error: 'Server error while moving tasks' });
   }
 });
 

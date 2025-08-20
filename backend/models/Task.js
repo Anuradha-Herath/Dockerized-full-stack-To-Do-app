@@ -39,8 +39,13 @@ const taskSchema = new mongoose.Schema({
     trim: true
   }],
   category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    default: null
+  },
+  categoryType: {
     type: String,
-    enum: ['all', 'personal', 'work', 'important', 'today'],
+    enum: ['all', 'today', 'work', 'personal', 'important', 'completed', 'archived', 'custom'],
     default: 'all'
   }
 }, {
@@ -56,6 +61,17 @@ taskSchema.pre('save', function(next) {
       this.completedAt = null;
     }
   }
+  
+  // Handle legacy category data migration
+  if (!this.categoryType && this.category) {
+    if (typeof this.category === 'string') {
+      this.categoryType = this.category;
+      this.category = null;
+    } else {
+      this.categoryType = 'all';
+    }
+  }
+  
   next();
 });
 
@@ -63,5 +79,6 @@ taskSchema.pre('save', function(next) {
 taskSchema.index({ user: 1, createdAt: -1 });
 taskSchema.index({ user: 1, completed: 1 });
 taskSchema.index({ user: 1, dueDate: 1 });
+taskSchema.index({ user: 1, category: 1 });
 
 module.exports = mongoose.model('Task', taskSchema);

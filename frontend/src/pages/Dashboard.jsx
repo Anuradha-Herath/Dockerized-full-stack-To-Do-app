@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useCategories } from '../contexts/CategoryContext';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, isThisWeek, isPast } from 'date-fns';
 import axios from 'axios';
@@ -27,6 +28,7 @@ const Dashboard = () => {
 
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { categories } = useCategories();
   const navigate = useNavigate();
 
   // Fetch all tasks
@@ -128,41 +130,44 @@ const Dashboard = () => {
     
     let filtered = tasks.filter(task => {
       // Apply category filter
-      switch (filter) {
-        case 'completed':
-          if (!task.completed) return false;
-          break;
-        case 'today':
-          if (!isToday(new Date(task.dueDate || task.createdAt))) return false;
-          break;
-        case 'work':
-          if (task.category !== 'work') return false;
-          break;
-        case 'personal':
-          if (task.category !== 'personal') return false;
-          break;
-        case 'important':
-          if (task.priority !== 'high' && task.category !== 'important') return false;
-          break;
-        case 'archived':
-          if (!task.archived) return false;
-          break;
-        default:
-          // 'all' - no filter
-          break;
+      const currentCategory = categories.find(cat => cat.id === filter);
+      
+      if (currentCategory) {
+        if (currentCategory.isDefault) {
+          // Handle default categories
+          switch (filter) {
+            case 'all':
+              return true; // Show all tasks
+            case 'completed':
+              return task.completed;
+            case 'today':
+              return isToday(new Date(task.dueDate || task.createdAt));
+            case 'work':
+            case 'personal':
+            case 'important':
+              return task.categoryType === filter;
+            case 'archived':
+              return task.archived;
+            default:
+              return true;
+          }
+        } else {
+          // Handle custom categories
+          return task.category && task.category._id === filter;
+        }
       }
       
-      // Apply search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return (
-          task.title.toLowerCase().includes(query) ||
-          (task.description && task.description.toLowerCase().includes(query))
-        );
-      }
-      
-      return true;
+      return true; // Default to showing all tasks
     });
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(task =>
+        task.title.toLowerCase().includes(query) ||
+        (task.description && task.description.toLowerCase().includes(query))
+      );
+    }
 
     // Sort tasks: incomplete first, then by priority, then by due date
     return filtered.sort((a, b) => {
@@ -192,26 +197,41 @@ const Dashboard = () => {
       total: tasks.length,
       completed: tasks.filter(t => t.completed).length,
       today: tasks.filter(t => isToday(new Date(t.dueDate || t.createdAt))).length,
-      work: tasks.filter(t => t.category === 'work').length,
-      personal: tasks.filter(t => t.category === 'personal').length,
-      important: tasks.filter(t => t.priority === 'high' || t.category === 'important').length,
-      archived: tasks.filter(t => t.archived).length,
       overdue: tasks.filter(t => !t.completed && t.dueDate && isPast(new Date(t.dueDate))).length
     };
+
+    // Add stats for each category
+    categories.forEach(category => {
+      if (category.isDefault) {
+        switch (category.id) {
+          case 'all':
+            stats[category.id] = tasks.length;
+            break;
+          case 'completed':
+            stats[category.id] = tasks.filter(t => t.completed).length;
+            break;
+          case 'today':
+            stats[category.id] = tasks.filter(t => isToday(new Date(t.dueDate || t.createdAt))).length;
+            break;
+          case 'work':
+          case 'personal':
+          case 'important':
+            stats[category.id] = tasks.filter(t => t.categoryType === category.id).length;
+            break;
+          case 'archived':
+            stats[category.id] = tasks.filter(t => t.archived).length;
+            break;
+        }
+      } else {
+        // Custom category
+        stats[category.id] = tasks.filter(t => t.category && t.category._id === category.id).length;
+      }
+    });
 
     stats.completionRate = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
     
     return stats;
   };
-
-  const filteredTasks = getFilteredTasks();
-  const stats = getStats();
-
-  useEffect(() => {
-    console.log('Dashboard mounted, user:', user);
-    console.log('Auth token:', localStorage.getItem('authToken'));
-    fetchTasks();
-  }, []);
 
   // Close modal handler
   const handleCloseModal = () => {
@@ -219,6 +239,27 @@ const Dashboard = () => {
     setEditingTask(null);
     setInitialCategory(null);
   };
+
+  const filteredTasks = getFilteredTasks();
+  const stats = getStats();
+
+  // Handle task category change
+  const handleCategoryChange = async (task, category, data) => {
+    try {
+      // Refresh tasks to get the updated data
+      await fetchTasks();
+      setError(null);
+    } catch (err) {
+      setError('Failed to move task to category');
+      console.error('Error updating task category:', err);
+    }
+  };
+
+  useEffect(() => {
+    console.log('Dashboard mounted, user:', user);
+    console.log('Auth token:', localStorage.getItem('authToken'));
+    fetchTasks();
+  }, []);
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${
@@ -248,13 +289,10 @@ const Dashboard = () => {
             <h1 className={`text-3xl font-bold ${
               isDark ? 'text-white' : 'text-gray-900'
             } mb-2`}>
-              {filter === 'all' ? 'All Tasks' :
-               filter === 'today' ? 'Today\'s Tasks' :
-               filter === 'work' ? 'Work Tasks' :
-               filter === 'personal' ? 'Personal Tasks' :
-               filter === 'important' ? 'Important Tasks' :
-               filter === 'completed' ? 'Completed Tasks' :
-               filter === 'archived' ? 'Archived Tasks' : 'Tasks'}
+              {(() => {
+                const currentCategory = categories.find(cat => cat.id === filter);
+                return currentCategory ? currentCategory.name : 'Tasks';
+              })()}
             </h1>
             <p className={`text-lg ${
               isDark ? 'text-gray-400' : 'text-gray-600'
@@ -300,6 +338,7 @@ const Dashboard = () => {
                   onToggle={toggleTask}
                   onEdit={handleEditTask}
                   onDelete={deleteTask}
+                  onCategoryChange={handleCategoryChange}
                 />
               ))}
             </div>

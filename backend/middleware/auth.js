@@ -10,27 +10,28 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔑 Token decoded, userId:', decoded.userId);
+    req.userId = decoded.userId;
     
+    // Optionally, you can also fetch the user and attach it to req
     const user = await User.findById(decoded.userId).select('-password');
-    
     if (!user) {
-      console.log('❌ User not found for token userId:', decoded.userId);
       return res.status(401).json({ error: 'Invalid token. User not found.' });
     }
-
-    console.log('✅ User authenticated:', { id: user._id, email: user.email });
+    
     req.user = user;
     next();
   } catch (error) {
-    console.log('🚫 Auth error:', error.message);
+    console.error('Auth middleware error:', error);
+    
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token.' });
     }
+    
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired.' });
     }
-    res.status(500).json({ error: 'Server error during authentication.' });
+    
+    res.status(401).json({ error: 'Invalid token.' });
   }
 };
 

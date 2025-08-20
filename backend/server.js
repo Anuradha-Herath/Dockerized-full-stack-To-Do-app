@@ -119,6 +119,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/auth', authLimiter, require('./routes/googleAuth'));
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/categories', require('./routes/categories'));
 
 // Welcome route
 app.get('/', (req, res) => {
@@ -157,6 +158,13 @@ app.get('/api/docs', (req, res) => {
         'DELETE /api/tasks/:id': 'Delete task',
         'POST /api/tasks/bulk-update': 'Bulk update tasks',
         'DELETE /api/tasks/bulk-delete': 'Bulk delete tasks'
+      },
+      categories: {
+        'GET /api/categories': 'Get all categories',
+        'GET /api/categories/stats': 'Get category statistics',
+        'POST /api/categories': 'Create new category',
+        'PUT /api/categories/:id': 'Update category',
+        'DELETE /api/categories/:id': 'Delete category'
       }
     },
     authentication: 'Bearer token required for protected routes'
@@ -220,7 +228,8 @@ app.use('*', (req, res) => {
       'POST /api/auth/register',
       'POST /api/auth/login',
       'GET /auth/google',
-      'GET /api/tasks'
+      'GET /api/tasks',
+      'GET /api/categories'
     ]
   });
 });
