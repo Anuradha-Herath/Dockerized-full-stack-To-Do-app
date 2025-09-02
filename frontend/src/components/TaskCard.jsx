@@ -20,7 +20,9 @@ import {
   Music,
   Camera,
   Gamepad2,
-  Coffee
+  Coffee,
+  X,
+  Edit
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CategorySelector from './CategorySelector';
@@ -36,6 +38,8 @@ const TaskCard = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
 
   const iconMap = {
     Inbox, Calendar, Briefcase, User, Star, Heart, Home, Book,
@@ -293,7 +297,7 @@ const TaskCard = ({
                         ? 'text-gray-400 hover:bg-gray-700' 
                         : 'text-gray-500 hover:bg-gray-100'
                   }`}
-                  onClick={() => onEdit(task)}
+                  onClick={() => setShowDatePicker(true)}
                   variants={{
                     hidden: { opacity: 0, x: -10 },
                     visible: { opacity: 1, x: 0 }
@@ -313,7 +317,7 @@ const TaskCard = ({
                   className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border cursor-pointer transition-all duration-200 ${
                     isDark ? getPriorityColorDark(task.priority) : getPriorityColor(task.priority)
                   } hover:shadow-md`}
-                  onClick={() => onEdit(task)}
+                  onClick={() => setShowPriorityModal(true)}
                   variants={{
                     hidden: { opacity: 0, scale: 0.8 },
                     visible: { opacity: 1, scale: 1 }
@@ -380,6 +384,23 @@ const TaskCard = ({
                   transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <div className="py-1">
+                    <motion.button
+                      onClick={() => {
+                        onEdit(task);
+                        setShowMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
+                        isDark 
+                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      whileHover={{ backgroundColor: isDark ? "#374151" : "#f9fafb" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span>Edit</span>
+                    </motion.button>
+                    
                     <motion.button
                       onClick={() => {
                         setShowCategorySelector(true);
@@ -454,9 +475,188 @@ const TaskCard = ({
       isDark={isDark}
       title="Change Category"
     />
+
+    {/* Date Picker Modal */}
+    <AnimatePresence>
+      {showDatePicker && (
+        <motion.div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div 
+            className={`${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            } rounded-2xl shadow-2xl border max-w-sm w-full p-6`}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Change Due Date
+              </h3>
+              <button
+                onClick={() => setShowDatePicker(false)}
+                className={`p-2 rounded-lg transition-colors duration-200 ${
+                  isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  defaultValue={task.dueDate ? task.dueDate.split('T')[0] : ''}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    onEdit({ ...task, dueDate: newDate ? new Date(newDate).toISOString() : null });
+                    setShowDatePicker(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-blue-500'
+                  } focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:outline-none`}
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDatePicker(false)}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                    isDark
+                      ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onEdit({ ...task, dueDate: null });
+                    setShowDatePicker(false);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-all duration-200 ${
+                    isDark
+                      ? 'bg-red-900/50 text-red-300 hover:bg-red-900 border-red-800'
+                      : 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200'
+                  } border`}
+                >
+                  Remove Date
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* Priority Modal */}
+    <AnimatePresence>
+      {showPriorityModal && (
+        <motion.div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div 
+            className={`${
+              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            } rounded-2xl shadow-2xl border max-w-sm w-full p-6`}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Change Priority
+              </h3>
+              <button
+                onClick={() => setShowPriorityModal(false)}
+                className={`p-2 rounded-lg transition-colors duration-200 ${
+                  isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <Flag className="w-4 h-4 inline mr-1" />
+                  Priority Level
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'low', label: 'Low', color: isDark ? 'bg-green-900/30 text-green-300 border-green-800' : 'bg-green-100 text-green-800 border-green-200' },
+                    { value: 'medium', label: 'Medium', color: isDark ? 'bg-yellow-900/30 text-yellow-300 border-yellow-800' : 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+                    { value: 'high', label: 'High', color: isDark ? 'bg-red-900/30 text-red-300 border-red-800' : 'bg-red-100 text-red-800 border-red-200' }
+                  ].map(({ value, label, color }) => (
+                    <button
+                      key={value}
+                      onClick={() => {
+                        onPriorityChange?.(task, value) || onEdit({ ...task, priority: value });
+                        setShowPriorityModal(false);
+                      }}
+                      className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                        task.priority === value ? color : isDark ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPriorityModal(false)}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                    isDark
+                      ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onPriorityChange?.(task, null) || onEdit({ ...task, priority: null });
+                    setShowPriorityModal(false);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-all duration-200 ${
+                    isDark
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200'
+                  } border`}
+                >
+                  Remove Priority
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   </>
 );
-
 };
 
 export default TaskCard;
