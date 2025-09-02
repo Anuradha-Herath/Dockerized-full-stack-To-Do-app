@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   MoreHorizontal, 
-  Edit3, 
   Trash2, 
   Calendar,
   Flag,
@@ -157,7 +156,8 @@ const TaskCard = ({
   };
 
   return (
-    <motion.div 
+    <>
+      <motion.div 
       className={`group relative rounded-2xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
         task.completed 
           ? isDark 
@@ -258,12 +258,15 @@ const TaskCard = ({
             >
               
               {/* Category */}
-              <motion.div 
-                className="flex items-center space-x-1"
+              <motion.button 
+                className="flex items-center space-x-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md px-2 py-1 transition-colors duration-200"
+                onClick={() => setShowCategorySelector(true)}
                 variants={{
                   hidden: { opacity: 0, x: -10 },
                   visible: { opacity: 1, x: 0 }
                 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <categoryDisplay.icon className={`h-4 w-4 ${categoryDisplay.color}`} />
                 <span className={`text-xs font-medium ${
@@ -278,56 +281,63 @@ const TaskCard = ({
                     Custom
                   </span>
                 )}
-              </motion.div>
+              </motion.button>
               
               {/* Due Date */}
               {task.dueDate && (
-                <motion.div 
-                  className={`flex items-center space-x-1 text-xs ${
+                <motion.button 
+                  className={`flex items-center space-x-1 text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md px-2 py-1 transition-colors duration-200 ${
                     isOverdue() 
-                      ? 'text-red-500' 
+                      ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20' 
                       : isDark 
-                        ? 'text-gray-400' 
-                        : 'text-gray-500'
+                        ? 'text-gray-400 hover:bg-gray-700' 
+                        : 'text-gray-500 hover:bg-gray-100'
                   }`}
+                  onClick={() => onEdit(task)}
                   variants={{
                     hidden: { opacity: 0, x: -10 },
                     visible: { opacity: 1, x: 0 }
                   }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <Calendar className="h-3 w-3" />
                   <span>{formatDate(task.dueDate)}</span>
                   {isOverdue() && <span className="text-red-500 font-medium">Overdue</span>}
-                </motion.div>
+                </motion.button>
               )}
 
               {/* Priority */}
               {task.priority && (
-                <motion.span 
-                  className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${
+                <motion.button 
+                  className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border cursor-pointer transition-all duration-200 ${
                     isDark ? getPriorityColorDark(task.priority) : getPriorityColor(task.priority)
-                  }`}
+                  } hover:shadow-md`}
+                  onClick={() => onEdit(task)}
                   variants={{
                     hidden: { opacity: 0, scale: 0.8 },
                     visible: { opacity: 1, scale: 1 }
                   }}
                   whileHover={{ scale: 1.05 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <Flag className="h-3 w-3 mr-1" />
                   {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                </motion.span>
+                </motion.button>
               )}
 
               {/* Created Date */}
-              <motion.div 
-                className={`flex items-center space-x-1 text-xs ${
-                  isDark ? 'text-gray-500' : 'text-gray-400'
+              <motion.button 
+                className={`flex items-center space-x-1 text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md px-2 py-1 transition-colors duration-200 ${
+                  isDark ? 'text-gray-500 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'
                 }`}
+                onClick={() => onEdit(task)}
                 variants={{
                   hidden: { opacity: 0, x: -10 },
                   visible: { opacity: 1, x: 0 }
                 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <Clock className="h-3 w-3" />
                 <span>
@@ -336,7 +346,7 @@ const TaskCard = ({
                     day: 'numeric'
                   })}
                 </span>
-              </motion.div>
+              </motion.button>
             </motion.div>
           </div>
 
@@ -370,23 +380,6 @@ const TaskCard = ({
                   transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <div className="py-1">
-                    <motion.button
-                      onClick={() => {
-                        onEdit(task);
-                        setShowMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
-                        isDark 
-                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                      whileHover={{ backgroundColor: isDark ? "#374151" : "#f9fafb" }}
-                      transition={{ duration: 0.15 }}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      <span>Edit</span>
-                    </motion.button>
-                    
                     <motion.button
                       onClick={() => {
                         setShowCategorySelector(true);
@@ -428,16 +421,6 @@ const TaskCard = ({
         </div>
       </div>
 
-      {/* Category Selector Modal */}
-      <CategorySelector
-        isOpen={showCategorySelector}
-        onClose={() => setShowCategorySelector(false)}
-        onSelectCategory={handleCategoryChange}
-        selectedTasks={[task]}
-        isDark={isDark}
-        title="Move Task to Category"
-      />
-
       {/* Progress bar for subtasks (if applicable) */}
       {task.subtasks && task.subtasks.length > 0 && (
         <div className={`px-6 pb-4 ${
@@ -461,7 +444,19 @@ const TaskCard = ({
         </div>
       )}
     </motion.div>
-  );
+
+    {/* Category Selector Modal - Moved outside task card */}
+    <CategorySelector
+      isOpen={showCategorySelector}
+      onClose={() => setShowCategorySelector(false)}
+      onSelectCategory={handleCategoryChange}
+      selectedTasks={[task]}
+      isDark={isDark}
+      title="Change Category"
+    />
+  </>
+);
+
 };
 
 export default TaskCard;
