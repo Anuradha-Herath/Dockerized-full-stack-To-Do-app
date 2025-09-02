@@ -211,36 +211,32 @@ const TaskCard = ({
             {/* Title */}
             <motion.h3 
               className={`font-medium text-base leading-6 transition-all duration-200 ${
-                task.completed 
-                  ? 'line-through opacity-60' 
-                  : ''
-              } ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}
               animate={{ 
-                opacity: task.completed ? 0.6 : 1,
-                textDecoration: task.completed ? 'line-through' : 'none'
+                opacity: task.completed ? 0.6 : 1
               }}
               transition={{ duration: 0.3 }}
             >
-              {task.title}
+              <span className={task.completed ? 'line-through' : ''}>
+                {task.title}
+              </span>
             </motion.h3>
 
             {/* Description */}
             {task.description && (
               <motion.p 
                 className={`mt-1 text-sm leading-5 ${
-                  task.completed ? 'line-through opacity-50' : ''
-                } ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}
                 animate={{ 
-                  opacity: task.completed ? 0.5 : 1,
-                  textDecoration: task.completed ? 'line-through' : 'none'
+                  opacity: task.completed ? 0.5 : 1
                 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
               >
-                {task.description}
+                <span className={task.completed ? 'line-through' : ''}>
+                  {task.description}
+                </span>
               </motion.p>
             )}
 
@@ -272,7 +268,9 @@ const TaskCard = ({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <categoryDisplay.icon className={`h-4 w-4 ${categoryDisplay.color}`} />
+                {React.createElement(categoryDisplay.icon, {
+                  className: `h-4 w-4 ${categoryDisplay.color}`
+                })}
                 <span className={`text-xs font-medium ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}>

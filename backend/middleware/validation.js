@@ -46,9 +46,21 @@ const taskValidation = [
     .isISO8601()
     .withMessage('Due date must be a valid date'),
   body('category')
-    .optional()
-    .isIn(['all', 'personal', 'work', 'important', 'today'])
-    .withMessage('Category must be one of: all, personal, work, important, today')
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      // Allow empty/null/undefined values
+      if (!value) return true;
+      
+      // Allow MongoDB ObjectId strings (24 hex characters)
+      if (/^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      // Allow predefined category types
+      if (['all', 'personal', 'work', 'important', 'today'].includes(value)) {
+        return true;
+      }
+      throw new Error('Category must be a valid category ID or one of: all, personal, work, important, today');
+    })
 ];
 
 const updateTaskValidation = [
@@ -75,9 +87,21 @@ const updateTaskValidation = [
     .isISO8601()
     .withMessage('Due date must be a valid date'),
   body('category')
-    .optional()
-    .isIn(['all', 'personal', 'work', 'important', 'today'])
-    .withMessage('Category must be one of: all, personal, work, important, today')
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      // Allow empty/null/undefined values
+      if (!value) return true;
+      
+      // Allow MongoDB ObjectId strings (24 hex characters)
+      if (/^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      // Allow predefined category types
+      if (['all', 'personal', 'work', 'important', 'today'].includes(value)) {
+        return true;
+      }
+      throw new Error('Category must be a valid category ID or one of: all, personal, work, important, today');
+    })
 ];
 
 const passwordChangeValidation = [

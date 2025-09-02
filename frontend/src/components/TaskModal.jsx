@@ -81,10 +81,9 @@ const TaskModal = ({ task, isOpen, onClose, onSave, isDark, initialCategory = nu
         categoryType: 'custom'
       };
     } else {
-      // Default category - send as categoryType
+      // Default category - send as categoryType only
       return {
-        categoryType: selectedCategory.id,
-        category: undefined // Don't send category field for default categories
+        categoryType: selectedCategory.id
       };
     }
   };
