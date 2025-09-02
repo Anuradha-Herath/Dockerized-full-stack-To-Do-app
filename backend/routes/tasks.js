@@ -3,6 +3,7 @@ const Task = require('../models/Task');
 const Category = require('../models/Category');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
+const NotificationService = require('../services/NotificationService');
 const {
   taskValidation,
   updateTaskValidation,
@@ -284,6 +285,9 @@ router.post('/', auth, taskValidation, handleValidationErrors, async (req, res) 
     // Populate category info before sending response
     await task.populate('category', 'name color icon');
     
+    // Create notification for task creation
+    await NotificationService.createTaskCreatedNotification(task, req.user._id);
+    
     console.log('✅ Task created successfully:', { id: task._id, title: task.title, user: task.user });
     
     res.status(201).json(task);
@@ -306,6 +310,16 @@ router.put('/:id', auth, updateTaskValidation, handleValidationErrors, async (re
   try {
     const updates = req.body;
     
+    // Get the original task to track changes
+    const originalTask = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!originalTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
     // Handle dueDate conversion
     if (updates.dueDate) {
       updates.dueDate = new Date(updates.dueDate);
@@ -337,6 +351,37 @@ router.put('/:id', auth, updateTaskValidation, handleValidationErrors, async (re
 
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Create notifications based on changes
+    const changes = {};
+
+    // Check for completion status change
+    if (updates.completed !== undefined && updates.completed !== originalTask.completed) {
+      if (updates.completed) {
+        await NotificationService.createTaskCompletedNotification(task, req.user._id);
+      }
+    }
+
+    // Check for due date change
+    if (updates.dueDate && (!originalTask.dueDate || updates.dueDate.getTime() !== originalTask.dueDate.getTime())) {
+      changes.dueDate = {
+        old: originalTask.dueDate,
+        new: updates.dueDate
+      };
+    }
+
+    // Check for priority change
+    if (updates.priority && updates.priority !== originalTask.priority) {
+      changes.priority = {
+        old: originalTask.priority,
+        new: updates.priority
+      };
+    }
+
+    // Create update notification if there are changes
+    if (Object.keys(changes).length > 0) {
+      await NotificationService.createTaskUpdatedNotification(task, req.user._id, changes);
     }
 
     res.json(task);

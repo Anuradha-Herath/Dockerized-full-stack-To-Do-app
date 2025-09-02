@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCategories } from '../contexts/CategoryContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, isThisWeek, isPast } from 'date-fns';
 import axios from 'axios';
@@ -29,6 +30,7 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { categories } = useCategories();
+  const { refreshNotifications } = useNotifications();
   const navigate = useNavigate();
 
   // Fetch all tasks
@@ -73,6 +75,9 @@ const Dashboard = () => {
       setEditingTask(null);
       setInitialCategory(null);
       setError(null);
+      
+      // Refresh notifications after task creation/update
+      refreshNotifications();
     } catch (err) {
       setError(editingTask ? 'Failed to update task' : 'Failed to create task');
       console.error('Error saving task:', err);
@@ -89,6 +94,9 @@ const Dashboard = () => {
         )
       );
       setError(null);
+      
+      // Refresh notifications after task completion toggle
+      refreshNotifications();
     } catch (err) {
       setError('Failed to update task');
       console.error('Error updating task:', err);

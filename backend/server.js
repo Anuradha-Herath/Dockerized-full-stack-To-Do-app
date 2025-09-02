@@ -6,7 +6,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cron = require('node-cron');
 const passport = require('./config/passport');
+const NotificationService = require('./services/NotificationService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -98,6 +100,27 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => {
   console.log('Connected to MongoDB');
   console.log('Database:', mongoose.connection.name);
+  
+  // Schedule notification checks
+  // Check for overdue tasks every hour
+  cron.schedule('0 * * * *', async () => {
+    console.log('🔍 Checking for overdue tasks...');
+    await NotificationService.checkAndCreateOverdueNotifications();
+  });
+  
+  // Check for upcoming due dates every 30 minutes
+  cron.schedule('*/30 * * * *', async () => {
+    console.log('⏰ Checking for upcoming task reminders...');
+    await NotificationService.checkAndCreateReminderNotifications();
+  });
+  
+  // Clean up old notifications daily at 2 AM
+  cron.schedule('0 2 * * *', async () => {
+    console.log('🧹 Cleaning up old notifications...');
+    await NotificationService.cleanupOldNotifications();
+  });
+  
+  console.log('📅 Notification scheduler started');
 })
 .catch(err => {
   console.error('MongoDB connection error:', err);
@@ -120,6 +143,7 @@ app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/auth', authLimiter, require('./routes/googleAuth'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Welcome route
 app.get('/', (req, res) => {
@@ -165,6 +189,15 @@ app.get('/api/docs', (req, res) => {
         'POST /api/categories': 'Create new category',
         'PUT /api/categories/:id': 'Update category',
         'DELETE /api/categories/:id': 'Delete category'
+      },
+      notifications: {
+        'GET /api/notifications': 'Get all notifications',
+        'GET /api/notifications/stats': 'Get notification statistics',
+        'GET /api/notifications/:id': 'Get single notification',
+        'PUT /api/notifications/:id/read': 'Mark notification as read/unread',
+        'PUT /api/notifications/mark-all-read': 'Mark all notifications as read',
+        'DELETE /api/notifications/:id': 'Delete notification',
+        'DELETE /api/notifications/bulk-delete': 'Bulk delete notifications'
       }
     },
     authentication: 'Bearer token required for protected routes'

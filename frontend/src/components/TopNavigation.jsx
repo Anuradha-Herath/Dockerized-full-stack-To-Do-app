@@ -2,11 +2,15 @@ import React, { useState } from 'react';
 import { Search, Sun, Moon, User, Settings, LogOut, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import NotificationDropdown from './NotificationDropdown';
 
 const TopNavigation = ({ searchQuery, onSearchChange }) => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { unreadCount } = useNotifications();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -70,23 +74,42 @@ const TopNavigation = ({ searchQuery, onSearchChange }) => {
             </button>
 
             {/* Notifications */}
-            <button
-              className={`p-2 rounded-lg transition-all duration-200 relative ${
-                isDark 
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-              title="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-              {/* Notification dot */}
-              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  setShowUserMenu(false);
+                }}
+                className={`p-2 rounded-lg transition-all duration-200 relative ${
+                  isDark 
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+                title="Notifications"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              <NotificationDropdown
+                isOpen={showNotifications}
+                onClose={() => setShowNotifications(false)}
+                isDark={isDark}
+              />
+            </div>
 
             {/* User Menu */}
             <div className="relative">
               <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
+                onClick={() => {
+                  setShowUserMenu(!showUserMenu);
+                  setShowNotifications(false);
+                }}
                 className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${
                   isDark 
                     ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
