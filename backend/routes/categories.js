@@ -128,6 +128,19 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete default categories' });
     }
 
+    // Check if there are tasks associated with this category
+    const Task = require('../models/Task');
+    const tasksCount = await Task.countDocuments({ 
+      user: req.userId, 
+      category: categoryId 
+    });
+
+    if (tasksCount > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete category with ${tasksCount} task${tasksCount !== 1 ? 's' : ''}. Please move or delete the tasks first.` 
+      });
+    }
+
     await Category.findByIdAndDelete(categoryId);
 
     res.json({ message: 'Category deleted successfully' });

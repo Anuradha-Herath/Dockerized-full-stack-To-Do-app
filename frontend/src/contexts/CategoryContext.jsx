@@ -92,6 +92,31 @@ export const CategoryProvider = ({ children }) => {
     }
   };
 
+  const updateCategory = async (categoryId, categoryData) => {
+    try {
+      const response = await axios.put(`/api/categories/${categoryId}`, categoryData);
+      const updatedCategory = response.data;
+      
+      // Transform to match our format
+      const transformedCategory = {
+        id: updatedCategory._id,
+        name: updatedCategory.name,
+        icon: updatedCategory.icon,
+        color: updatedCategory.color,
+        isDefault: false,
+        isCustom: true
+      };
+      
+      setCategories(prev => prev.map(cat => 
+        cat.id === categoryId ? transformedCategory : cat
+      ));
+      return { success: true, category: transformedCategory };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to update category';
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const moveTasksToCategory = async (taskIds, targetCategory) => {
     try {
       const payload = targetCategory.isCustom 
@@ -110,6 +135,7 @@ export const CategoryProvider = ({ children }) => {
     categories,
     loading,
     createCategory,
+    updateCategory,
     deleteCategory,
     fetchCategories,
     moveTasksToCategory,
