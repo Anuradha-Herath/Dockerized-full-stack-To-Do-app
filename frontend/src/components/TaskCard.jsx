@@ -23,6 +23,7 @@ import {
   Gamepad2,
   Coffee
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import CategorySelector from './CategorySelector';
 
 const TaskCard = ({ 
@@ -156,64 +157,114 @@ const TaskCard = ({
   };
 
   return (
-    <div className={`group relative rounded-2xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
-      task.completed 
-        ? isDark 
-          ? 'bg-gray-800/50 border-gray-700/50 opacity-75' 
-          : 'bg-gray-50/50 border-gray-200/50 opacity-75'
-        : isDark 
-          ? 'bg-gray-800 border-gray-700 hover:border-gray-600 hover:shadow-xl hover:shadow-primary-500/10' 
-          : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-xl hover:shadow-primary-500/10'
-    }`}>
+    <motion.div 
+      className={`group relative rounded-2xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+        task.completed 
+          ? isDark 
+            ? 'bg-gray-800/50 border-gray-700/50 opacity-75' 
+            : 'bg-gray-50/50 border-gray-200/50 opacity-75'
+          : isDark 
+            ? 'bg-gray-800 border-gray-700 hover:border-gray-600 hover:shadow-xl hover:shadow-primary-500/10' 
+            : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-xl hover:shadow-primary-500/10'
+      }`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ duration: 0.3, type: "spring", stiffness: 300 }}
+      layout
+    >
       
       {/* Task Content */}
       <div className="p-6">
         <div className="flex items-start space-x-4">
           
           {/* Checkbox */}
-          <button
+          <motion.button
             onClick={handleToggle}
             className="flex-shrink-0 mt-0.5 transition-all duration-200 hover:scale-110"
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
           >
             {task.completed ? (
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              >
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+              </motion.div>
             ) : (
               <Circle className={`h-5 w-5 ${
                 isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-400 hover:text-primary-600'
               }`} />
             )}
-          </button>
+          </motion.button>
 
           {/* Task Details */}
           <div className="flex-1 min-w-0">
             
             {/* Title */}
-            <h3 className={`font-medium text-base leading-6 transition-all duration-200 ${
-              task.completed 
-                ? 'line-through opacity-60' 
-                : ''
-            } ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
+            <motion.h3 
+              className={`font-medium text-base leading-6 transition-all duration-200 ${
+                task.completed 
+                  ? 'line-through opacity-60' 
+                  : ''
+              } ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}
+              animate={{ 
+                opacity: task.completed ? 0.6 : 1,
+                textDecoration: task.completed ? 'line-through' : 'none'
+              }}
+              transition={{ duration: 0.3 }}
+            >
               {task.title}
-            </h3>
+            </motion.h3>
 
             {/* Description */}
             {task.description && (
-              <p className={`mt-1 text-sm leading-5 ${
-                task.completed ? 'line-through opacity-50' : ''
-              } ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <motion.p 
+                className={`mt-1 text-sm leading-5 ${
+                  task.completed ? 'line-through opacity-50' : ''
+                } ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}
+                animate={{ 
+                  opacity: task.completed ? 0.5 : 1,
+                  textDecoration: task.completed ? 'line-through' : 'none'
+                }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
                 {task.description}
-              </p>
+              </motion.p>
             )}
 
             {/* Meta Information */}
-            <div className="flex items-center space-x-4 mt-3">
+            <motion.div 
+              className="flex items-center space-x-4 mt-3"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.1,
+                    delayChildren: 0.2
+                  }
+                }
+              }}
+            >
               
               {/* Category */}
-              <div className="flex items-center space-x-1">
+              <motion.div 
+                className="flex items-center space-x-1"
+                variants={{
+                  hidden: { opacity: 0, x: -10 },
+                  visible: { opacity: 1, x: 0 }
+                }}
+              >
                 <categoryDisplay.icon className={`h-4 w-4 ${categoryDisplay.color}`} />
                 <span className={`text-xs font-medium ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
@@ -227,37 +278,57 @@ const TaskCard = ({
                     Custom
                   </span>
                 )}
-              </div>
+              </motion.div>
               
               {/* Due Date */}
               {task.dueDate && (
-                <div className={`flex items-center space-x-1 text-xs ${
-                  isOverdue() 
-                    ? 'text-red-500' 
-                    : isDark 
-                      ? 'text-gray-400' 
-                      : 'text-gray-500'
-                }`}>
+                <motion.div 
+                  className={`flex items-center space-x-1 text-xs ${
+                    isOverdue() 
+                      ? 'text-red-500' 
+                      : isDark 
+                        ? 'text-gray-400' 
+                        : 'text-gray-500'
+                  }`}
+                  variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    visible: { opacity: 1, x: 0 }
+                  }}
+                >
                   <Calendar className="h-3 w-3" />
                   <span>{formatDate(task.dueDate)}</span>
                   {isOverdue() && <span className="text-red-500 font-medium">Overdue</span>}
-                </div>
+                </motion.div>
               )}
 
               {/* Priority */}
               {task.priority && (
-                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${
-                  isDark ? getPriorityColorDark(task.priority) : getPriorityColor(task.priority)
-                }`}>
+                <motion.span 
+                  className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${
+                    isDark ? getPriorityColorDark(task.priority) : getPriorityColor(task.priority)
+                  }`}
+                  variants={{
+                    hidden: { opacity: 0, scale: 0.8 },
+                    visible: { opacity: 1, scale: 1 }
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
                   <Flag className="h-3 w-3 mr-1" />
                   {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                </span>
+                </motion.span>
               )}
 
               {/* Created Date */}
-              <div className={`flex items-center space-x-1 text-xs ${
-                isDark ? 'text-gray-500' : 'text-gray-400'
-              }`}>
+              <motion.div 
+                className={`flex items-center space-x-1 text-xs ${
+                  isDark ? 'text-gray-500' : 'text-gray-400'
+                }`}
+                variants={{
+                  hidden: { opacity: 0, x: -10 },
+                  visible: { opacity: 1, x: 0 }
+                }}
+              >
                 <Clock className="h-3 w-3" />
                 <span>
                   {new Date(task.createdAt).toLocaleDateString('en-US', {
@@ -265,78 +336,94 @@ const TaskCard = ({
                     day: 'numeric'
                   })}
                 </span>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* Actions Menu */}
           <div className="relative">
-            <button
+            <motion.button
               onClick={() => setShowMenu(!showMenu)}
               className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 ${
                 isDark 
                   ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
                   : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
               }`}
+              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
             >
               <MoreHorizontal className="h-4 w-4" />
-            </button>
+            </motion.button>
 
             {/* Dropdown Menu */}
-            {showMenu && (
-              <div className={`absolute right-0 top-10 w-36 rounded-lg shadow-lg border z-10 ${
-                isDark 
-                  ? 'bg-gray-800 border-gray-700' 
-                  : 'bg-white border-gray-200'
-              } animate-scale-in`}>
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      onEdit(task);
-                      setShowMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
-                      isDark 
-                        ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Edit3 className="h-4 w-4" />
-                    <span>Edit</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setShowCategorySelector(true);
-                      setShowMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
-                      isDark 
-                        ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                    <span>Move to...</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      onDelete(task._id);
-                      setShowMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
-                      isDark 
-                        ? 'text-red-400 hover:bg-red-900/20' 
-                        : 'text-red-600 hover:bg-red-50'
-                    }`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              </div>
-            )}
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div 
+                  className={`absolute right-0 top-10 w-36 rounded-lg shadow-lg border z-10 ${
+                    isDark 
+                      ? 'bg-gray-800 border-gray-700' 
+                      : 'bg-white border-gray-200'
+                  }`}
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  <div className="py-1">
+                    <motion.button
+                      onClick={() => {
+                        onEdit(task);
+                        setShowMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
+                        isDark 
+                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      whileHover={{ backgroundColor: isDark ? "#374151" : "#f9fafb" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      <span>Edit</span>
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={() => {
+                        setShowCategorySelector(true);
+                        setShowMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
+                        isDark 
+                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      whileHover={{ backgroundColor: isDark ? "#374151" : "#f9fafb" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      <span>Move to...</span>
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={() => {
+                        onDelete(task._id);
+                        setShowMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors duration-200 ${
+                        isDark 
+                          ? 'text-red-400 hover:bg-red-900/20' 
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
+                      whileHover={{ backgroundColor: isDark ? "#451a1a" : "#fef2f2" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Delete</span>
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -357,12 +444,14 @@ const TaskCard = ({
           isDark ? 'border-gray-700' : 'border-gray-200'
         }`}>
           <div className={`w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5`}>
-            <div 
+            <motion.div 
               className="bg-primary-600 h-1.5 rounded-full transition-all duration-500"
-              style={{ 
+              initial={{ width: 0 }}
+              animate={{ 
                 width: `${(task.subtasks.filter(st => st.completed).length / task.subtasks.length) * 100}%` 
               }}
-            ></div>
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            ></motion.div>
           </div>
           <p className={`text-xs mt-1 ${
             isDark ? 'text-gray-400' : 'text-gray-500'
@@ -371,7 +460,7 @@ const TaskCard = ({
           </p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
