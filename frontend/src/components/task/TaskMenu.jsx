@@ -14,11 +14,12 @@ const TaskMenu = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
-          className={`absolute right-0 top-10 w-36 rounded-lg shadow-lg border z-10 ${
+          className={`absolute right-0 top-10 w-36 rounded-lg shadow-lg border z-[9999] ${
             isDark 
               ? 'bg-gray-800 border-gray-700' 
               : 'bg-white border-gray-200'
           }`}
+          role="menu"
           initial={{ opacity: 0, scale: 0.95, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -37,6 +38,7 @@ const TaskMenu = ({
               }`}
               whileHover={{ backgroundColor: isDark ? "#374151" : "#f9fafb" }}
               transition={{ duration: 0.15 }}
+              role="menuitem"
             >
               <Edit className="h-4 w-4" />
               <span>Edit</span>
@@ -54,6 +56,7 @@ const TaskMenu = ({
               }`}
               whileHover={{ backgroundColor: isDark ? "#374151" : "#f9fafb" }}
               transition={{ duration: 0.15 }}
+              role="menuitem"
             >
               <FolderOpen className="h-4 w-4" />
               <span>Move to...</span>
@@ -71,6 +74,7 @@ const TaskMenu = ({
               }`}
               whileHover={{ backgroundColor: isDark ? "#451a1a" : "#fef2f2" }}
               transition={{ duration: 0.15 }}
+              role="menuitem"
             >
               <Trash2 className="h-4 w-4" />
               <span>Delete</span>

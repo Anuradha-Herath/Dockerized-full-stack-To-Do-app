@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   MoreHorizontal,
   CheckCircle2,
@@ -40,6 +40,31 @@ const TaskCard = ({
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showMenu]);
 
   const iconMap = {
     Inbox, Calendar, Briefcase, User, Star, Heart, Home, Book,
@@ -168,8 +193,8 @@ const TaskCard = ({
             ? 'bg-gray-800/50 border-gray-700/50 opacity-75' 
             : 'bg-gray-50/50 border-gray-200/50 opacity-75'
           : isDark 
-            ? 'bg-gray-800 border-gray-700 hover:border-gray-600 hover:shadow-xl hover:shadow-primary-500/10' 
-            : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-xl hover:shadow-primary-500/10'
+            ? `bg-gray-800 border-gray-700 hover:border-gray-600 hover:shadow-xl hover:shadow-primary-500/10 ${showMenu ? 'z-20' : ''}` 
+            : `bg-white border-gray-200 hover:border-gray-300 hover:shadow-xl hover:shadow-primary-500/10 ${showMenu ? 'z-20' : ''}`
       }`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -257,7 +282,7 @@ const TaskCard = ({
           </div>
 
           {/* Actions Menu */}
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <motion.button
               onClick={() => setShowMenu(!showMenu)}
               className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 ${
