@@ -104,17 +104,14 @@ const TaskMeta = ({
       )}
 
       {/* Created Date */}
-      <motion.button 
-        className={`flex items-center space-x-1 text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md px-2 py-1 transition-colors duration-200 ${
-          isDark ? 'text-gray-500 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'
+      <motion.div 
+        className={`flex items-center space-x-1 text-xs px-2 py-1 ${
+          isDark ? 'text-gray-500' : 'text-gray-400'
         }`}
-        onClick={() => onEdit(task)}
         variants={{
           hidden: { opacity: 0, x: -10 },
           visible: { opacity: 1, x: 0 }
         }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
       >
         <Clock className="h-3 w-3" />
         <span>
@@ -123,7 +120,7 @@ const TaskMeta = ({
             day: 'numeric'
           })}
         </span>
-      </motion.button>
+      </motion.div>
     </motion.div>
   );
 };
