@@ -5,6 +5,38 @@ import { useTheme } from '../contexts/ThemeContext';
 import { format, formatDistanceToNow } from 'date-fns';
 
 const NotificationItem = ({ notification, onMarkAsRead, onDelete, isDark }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isMarkingRead, setIsMarkingRead] = useState(false);
+
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(notification._id);
+      // Success toast is handled in the context
+    } catch (error) {
+      // Error toast is handled in the context
+      console.error('Error deleting notification:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleMarkAsRead = async () => {
+    if (isMarkingRead) return;
+    
+    setIsMarkingRead(true);
+    try {
+      await onMarkAsRead(notification._id, true);
+      // No need for success toast for mark as read
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    } finally {
+      setIsMarkingRead(false);
+    }
+  };
+
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'task_created':
@@ -55,20 +87,22 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, isDark }) => {
             <div className="flex items-center space-x-2">
               {!notification.read && (
                 <button
-                  onClick={() => onMarkAsRead(notification._id, true)}
+                  onClick={handleMarkAsRead}
+                  disabled={isMarkingRead}
                   className={`p-1 rounded-full transition-colors duration-200 ${
                     isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'
-                  }`}
+                  } ${isMarkingRead ? 'opacity-50 cursor-not-allowed' : ''}`}
                   title="Mark as read"
                 >
                   <Check className="h-3 w-3" />
                 </button>
               )}
               <button
-                onClick={() => onDelete(notification._id)}
+                onClick={handleDelete}
+                disabled={isDeleting}
                 className={`p-1 rounded-full transition-colors duration-200 ${
                   isDark ? 'hover:bg-gray-600 text-gray-400' : 'hover:bg-gray-200 text-gray-500'
-                }`}
+                } ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Delete notification"
               >
                 <X className="h-3 w-3" />
@@ -107,10 +141,41 @@ const NotificationDropdown = ({ isOpen, onClose, isDark }) => {
     loading,
     markAsRead,
     markAllAsRead,
-    deleteNotification
+    deleteNotification,
+    cleanupNotifications
   } = useNotifications();
 
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   const dropdownRef = useRef(null);
+
+  const handleMarkAllAsRead = async () => {
+    if (isMarkingAllRead) return;
+    
+    setIsMarkingAllRead(true);
+    try {
+      await markAllAsRead();
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    } finally {
+      setIsMarkingAllRead(false);
+    }
+  };
+
+  const handleCleanup = async () => {
+    if (isCleaningUp) return;
+    
+    setIsCleaningUp(true);
+    try {
+      await cleanupNotifications();
+      // Refresh notifications after cleanup
+      window.location.reload(); // Simple way to refresh the notifications
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -154,18 +219,33 @@ const NotificationDropdown = ({ isOpen, onClose, isDark }) => {
               </span>
             )}
           </h3>
-          {unreadCount > 0 && (
+          <div className="flex items-center space-x-2">
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllAsRead}
+                disabled={isMarkingAllRead}
+                className={`text-xs px-2 py-1 rounded transition-colors duration-200 ${
+                  isDark
+                    ? 'text-blue-400 hover:bg-gray-700'
+                    : 'text-blue-600 hover:bg-gray-100'
+                } ${isMarkingAllRead ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isMarkingAllRead ? 'Marking...' : 'Mark all read'}
+              </button>
+            )}
             <button
-              onClick={markAllAsRead}
+              onClick={handleCleanup}
+              disabled={isCleaningUp}
               className={`text-xs px-2 py-1 rounded transition-colors duration-200 ${
                 isDark
-                  ? 'text-blue-400 hover:bg-gray-700'
-                  : 'text-blue-600 hover:bg-gray-100'
-              }`}
+                  ? 'text-gray-400 hover:bg-gray-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              } ${isCleaningUp ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Clean up orphaned notifications"
             >
-              Mark all read
+              {isCleaningUp ? 'Cleaning...' : 'Cleanup'}
             </button>
-          )}
+          </div>
         </div>
       </div>
 

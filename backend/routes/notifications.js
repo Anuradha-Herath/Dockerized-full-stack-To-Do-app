@@ -36,6 +36,8 @@ router.get('/', auth, async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
+    console.log(`Fetching notifications for user: ${req.user._id}, page: ${pageNum}, limit: ${limitNum}`);
+
     const notifications = await Notification.find(filter)
       .sort(sort)
       .skip(skip)
@@ -43,6 +45,8 @@ router.get('/', auth, async (req, res) => {
       .populate('relatedTask', 'title priority dueDate completed')
       .populate('relatedCategory', 'name color icon')
       .lean();
+
+    console.log(`Found ${notifications.length} notifications for user: ${req.user._id}`);
 
     const totalNotifications = await Notification.countDocuments(filter);
     const totalPages = Math.ceil(totalNotifications / limitNum);
@@ -52,6 +56,8 @@ router.get('/', auth, async (req, res) => {
       user: req.user._id,
       read: false
     });
+
+    console.log(`Total notifications: ${totalNotifications}, Unread: ${unreadCount}`);
 
     res.json({
       notifications,
@@ -162,6 +168,15 @@ router.put('/:id/read', auth, async (req, res) => {
   try {
     const { read = true } = req.body;
 
+    console.log(`Attempting to mark notification ${req.params.id} as ${read ? 'read' : 'unread'} for user: ${req.user._id}`);
+
+    // Validate ObjectId format
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log(`Invalid ObjectId format: ${req.params.id}`);
+      return res.status(400).json({ error: 'Invalid notification ID format' });
+    }
+
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       { read },
@@ -170,9 +185,11 @@ router.put('/:id/read', auth, async (req, res) => {
       .populate('relatedCategory', 'name color icon');
 
     if (!notification) {
+      console.log(`Notification not found: ${req.params.id} for user: ${req.user._id}`);
       return res.status(404).json({ error: 'Notification not found' });
     }
 
+    console.log(`Successfully marked notification ${req.params.id} as ${read ? 'read' : 'unread'}`);
     res.json(notification);
   } catch (error) {
     console.error('Update notification read status error:', error);
@@ -185,11 +202,15 @@ router.put('/:id/read', auth, async (req, res) => {
 // @access  Private
 router.put('/mark-all-read', auth, async (req, res) => {
   try {
+    console.log(`Marking all notifications as read for user: ${req.user._id}`);
+    
     const result = await Notification.updateMany(
       { user: req.user._id, read: false },
       { read: true }
     );
 
+    console.log(`Successfully marked ${result.modifiedCount} notifications as read for user: ${req.user._id}`);
+    
     res.json({
       message: `${result.modifiedCount} notifications marked as read`,
       modifiedCount: result.modifiedCount
@@ -205,15 +226,26 @@ router.put('/mark-all-read', auth, async (req, res) => {
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
   try {
+    console.log(`Attempting to delete notification: ${req.params.id} for user: ${req.user._id}`);
+    
+    // Validate ObjectId format
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log(`Invalid ObjectId format: ${req.params.id}`);
+      return res.status(400).json({ error: 'Invalid notification ID format' });
+    }
+
     const notification = await Notification.findOneAndDelete({
       _id: req.params.id,
       user: req.user._id
     });
 
     if (!notification) {
+      console.log(`Notification not found: ${req.params.id} for user: ${req.user._id}`);
       return res.status(404).json({ error: 'Notification not found' });
     }
 
+    console.log(`Successfully deleted notification: ${req.params.id}`);
     res.json({ message: 'Notification deleted successfully' });
   } catch (error) {
     console.error('Delete notification error:', error);
@@ -244,6 +276,61 @@ router.delete('/bulk-delete', auth, async (req, res) => {
   } catch (error) {
     console.error('Bulk delete notifications error:', error);
     res.status(500).json({ error: 'Server error during bulk delete' });
+  }
+});
+
+// @route   POST /api/notifications/cleanup
+// @desc    Clean up orphaned notifications (related to deleted tasks/categories)
+// @access  Private
+router.post('/cleanup', auth, async (req, res) => {
+  try {
+    console.log(`Starting notification cleanup for user: ${req.user._id}`);
+    
+    const Task = require('../models/Task');
+    const Category = require('../models/Category');
+    
+    // Find notifications with relatedTask that no longer exists
+    const notificationsWithTasks = await Notification.find({
+      user: req.user._id,
+      relatedTask: { $ne: null }
+    }).populate('relatedTask');
+    
+    const orphanedTaskNotifications = notificationsWithTasks.filter(n => !n.relatedTask);
+    
+    // Find notifications with relatedCategory that no longer exists
+    const notificationsWithCategories = await Notification.find({
+      user: req.user._id,
+      relatedCategory: { $ne: null }
+    }).populate('relatedCategory');
+    
+    const orphanedCategoryNotifications = notificationsWithCategories.filter(n => !n.relatedCategory);
+    
+    // Combine all orphaned notifications
+    const orphanedIds = [
+      ...orphanedTaskNotifications.map(n => n._id),
+      ...orphanedCategoryNotifications.map(n => n._id)
+    ];
+    
+    let deletedCount = 0;
+    if (orphanedIds.length > 0) {
+      const result = await Notification.deleteMany({
+        _id: { $in: orphanedIds },
+        user: req.user._id
+      });
+      deletedCount = result.deletedCount;
+    }
+    
+    console.log(`Cleanup completed for user ${req.user._id}. Deleted ${deletedCount} orphaned notifications.`);
+    
+    res.json({
+      message: `Cleanup completed. Removed ${deletedCount} orphaned notifications.`,
+      deletedCount,
+      orphanedTaskNotifications: orphanedTaskNotifications.length,
+      orphanedCategoryNotifications: orphanedCategoryNotifications.length
+    });
+  } catch (error) {
+    console.error('Notification cleanup error:', error);
+    res.status(500).json({ error: 'Server error during cleanup' });
   }
 });
 
