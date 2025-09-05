@@ -84,6 +84,35 @@ const Dashboard = () => {
     }
   };
 
+  // Direct task update function for inline edits (like date picker)
+  const handleDirectTaskUpdate = async (updatedTask) => {
+    try {
+      const response = await axios.put(`/api/tasks/${updatedTask._id}`, updatedTask);
+      setTasks(prev => 
+        prev.map(task => 
+          task._id === updatedTask._id ? response.data : task
+        )
+      );
+      // Refresh notifications after task update
+      refreshNotifications();
+      return response.data;
+    } catch (err) {
+      console.error('Error updating task:', err);
+      throw err;
+    }
+  };
+
+  // Handle priority change
+  const handlePriorityChange = async (task, priority) => {
+    try {
+      const updatedTask = { ...task, priority };
+      return await handleDirectTaskUpdate(updatedTask);
+    } catch (err) {
+      console.error('Error updating task priority:', err);
+      throw err;
+    }
+  };
+
   // Toggle task completion
   const toggleTask = async (id, completed) => {
     try {
@@ -345,7 +374,9 @@ const Dashboard = () => {
                   isDark={isDark}
                   onToggle={toggleTask}
                   onEdit={handleEditTask}
+                  onSave={handleDirectTaskUpdate}
                   onDelete={deleteTask}
+                  onPriorityChange={handlePriorityChange}
                   onCategoryChange={handleCategoryChange}
                 />
               ))}

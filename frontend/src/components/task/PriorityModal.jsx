@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flag, X } from 'lucide-react';
+import { Flag, X, Check } from 'lucide-react';
 
 const PriorityModal = ({ 
   isOpen, 
@@ -10,6 +10,31 @@ const PriorityModal = ({
   onEdit, 
   isDark 
 }) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePrioritySelect = async (priority) => {
+    if (!onPriorityChange && !onEdit) return;
+    
+    setIsLoading(true);
+    try {
+      if (onPriorityChange) {
+        await onPriorityChange(task, priority);
+      } else {
+        onEdit({ ...task, priority });
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error updating task priority:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
   return (
     <AnimatePresence>
       {isOpen && (
@@ -18,6 +43,7 @@ const PriorityModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onClick={handleBackdropClick}
         >
           <motion.div 
             className={`${
@@ -27,6 +53,7 @@ const PriorityModal = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -34,11 +61,12 @@ const PriorityModal = ({
               </h3>
               <button
                 onClick={onClose}
+                disabled={isLoading}
                 className={`p-2 rounded-lg transition-colors duration-200 ${
                   isDark
                     ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
+                } disabled:opacity-50`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -58,13 +86,11 @@ const PriorityModal = ({
                   ].map(({ value, label, color }) => (
                     <button
                       key={value}
-                      onClick={() => {
-                        onPriorityChange?.(task, value) || onEdit({ ...task, priority: value });
-                        onClose();
-                      }}
+                      onClick={() => handlePrioritySelect(value)}
+                      disabled={isLoading}
                       className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all duration-200 ${
                         task.priority === value ? color : isDark ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                      }`}
+                      } disabled:opacity-50`}
                     >
                       {label}
                     </button>
@@ -75,26 +101,25 @@ const PriorityModal = ({
               <div className="flex gap-3">
                 <button
                   onClick={onClose}
+                  disabled={isLoading}
                   className={`flex-1 px-4 py-2 rounded-lg border transition-all duration-200 ${
                     isDark
                       ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
                       : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                  }`}
+                  } disabled:opacity-50`}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    onPriorityChange?.(task, null) || onEdit({ ...task, priority: null });
-                    onClose();
-                  }}
+                  onClick={() => handlePrioritySelect(null)}
+                  disabled={isLoading}
                   className={`flex-1 px-4 py-2 rounded-lg transition-all duration-200 ${
                     isDark
                       ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200'
-                  } border`}
+                  } border disabled:opacity-50`}
                 >
-                  Remove Priority
+                  {isLoading ? 'Removing...' : 'Remove Priority'}
                 </button>
               </div>
             </div>

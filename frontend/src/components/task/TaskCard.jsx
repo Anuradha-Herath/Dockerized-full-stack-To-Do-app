@@ -31,6 +31,7 @@ const TaskCard = ({
   isDark, 
   onToggle, 
   onEdit, 
+  onSave,
   onDelete,
   onPriorityChange,
   onCategoryChange
@@ -301,7 +302,7 @@ const TaskCard = ({
       isOpen={showDatePicker}
       onClose={() => setShowDatePicker(false)}
       task={task}
-      onEdit={onEdit}
+      onSave={onSave}
       isDark={isDark}
     />
 
