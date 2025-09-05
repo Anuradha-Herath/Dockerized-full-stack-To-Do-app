@@ -26,19 +26,30 @@ app.use(helmet({
   },
 }));
 
-// Rate limiting
+// Rate limiting - Skip in development environment
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  skip: (req) => {
+    // Skip rate limiting for development
+    if (process.env.NODE_ENV === 'development') return true;
+    // Skip for favicon and health check
+    if (req.url === '/favicon.ico' || req.url === '/health') return true;
+    return false;
+  },
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
 });
 
-// Stricter rate limiting for auth routes
+// Stricter rate limiting for auth routes - Skip in development
 const authLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 50, // limit each IP to auth requests per windowMs
+  skip: (req) => {
+    // Skip rate limiting for development
+    return process.env.NODE_ENV === 'development';
+  },
   message: {
     error: 'Too many authentication attempts, please try again later.'
   }
@@ -55,13 +66,17 @@ const corsOptions = {
           'http://localhost:3000',
           'http://localhost:3001',
           'http://localhost:5173',
+          'http://localhost:8080',
           process.env.FRONTEND_URL
         ];
     
     const cleanOrigins = allowedOrigins.filter(Boolean);
     
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || cleanOrigins.includes(origin)) {
+    // In development, allow all origins for easier testing
+    if (process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else if (!origin || cleanOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or curl requests)
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -81,6 +96,14 @@ app.options('*', cors(corsOptions));
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Development logging middleware
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - ${req.ip}`);
+    next();
+  });
+}
 
 // Passport middleware
 app.use(passport.initialize());
@@ -136,6 +159,11 @@ app.get('/health', (req, res) => {
     version: '2.0.0',
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Favicon handler to prevent 404 errors
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end(); // No content
 });
 
 // API Routes
