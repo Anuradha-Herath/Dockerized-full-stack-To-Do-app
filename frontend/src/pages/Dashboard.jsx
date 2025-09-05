@@ -10,7 +10,7 @@ import axios from 'axios';
 // Modern Components
 import TopNavigation from '../components/TopNavigation';
 import Sidebar from '../components/Sidebar';
-import TaskCard from '../components/TaskCard';
+import { TaskCard } from '../components/task';
 import TaskModal from '../components/TaskModal';
 import FloatingActionButton from '../components/FloatingActionButton';
 import EmptyState from '../components/EmptyState';

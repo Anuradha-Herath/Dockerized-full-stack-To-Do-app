@@ -157,10 +157,10 @@ const Sidebar = ({ isDark, activeFilter, onFilterChange, stats = {} }) => {
             const isCustom = item.isCustom;
             
             return (
-              <div key={item.id} className="relative">
+              <div key={item.id} className="relative group">
                 <button
                   onClick={() => onFilterChange(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 group animate-in slide-in-from-left-2 ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 animate-in slide-in-from-left-2 ${
                     isActive
                       ? isDark
                         ? 'bg-primary-900/50 text-primary-300 border border-primary-700'
@@ -173,7 +173,7 @@ const Sidebar = ({ isDark, activeFilter, onFilterChange, stats = {} }) => {
                   <div className="flex items-center space-x-3">
                     <IconComponent className={`h-5 w-5 ${
                       isActive ? colorClass : isDark ? 'text-gray-400' : 'text-gray-500'
-                    } group-hover:${colorClass} transition-colors duration-200`} />
+                    } transition-colors duration-200`} />
                     <span className="font-medium text-sm flex-1">
                       {item.name}
                     </span>
@@ -193,24 +193,24 @@ const Sidebar = ({ isDark, activeFilter, onFilterChange, stats = {} }) => {
                         {stats[item.id] || item.count || 0}
                       </span>
                     )}
-                    
-                    {isCustom && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleDropdown(item.id);
-                        }}
-                        className={`p-1 rounded-md transition-colors ${
-                          isDark 
-                            ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
-                            : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    )}
                   </div>
                 </button>
+                
+                {isCustom && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleDropdown(item.id);
+                    }}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100 ${
+                      isDark 
+                        ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
+                        : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                )}
                 
                 {/* Dropdown Menu */}
                 {isCustom && dropdownOpen === item.id && (
