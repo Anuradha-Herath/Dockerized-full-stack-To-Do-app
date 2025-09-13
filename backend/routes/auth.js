@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const securityMonitor = require('../security-monitor');
 const {
   registerValidation,
   loginValidation,
@@ -73,14 +74,50 @@ router.post('/login', loginValidation, handleValidationErrors, async (req, res) 
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
+      // Log failed login attempt
+      securityMonitor.logSecurityEvent({
+        type: 'failed_login',
+        email: email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        reason: 'user_not_found'
+      });
       return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if account is locked
+    if (user.isLocked) {
+      securityMonitor.logSecurityEvent({
+        type: 'account_locked_attempt',
+        email: email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        lockUntil: user.lockUntil
+      });
+      return res.status(423).json({ 
+        error: 'Account temporarily locked due to multiple failed login attempts',
+        retryAfter: Math.ceil((user.lockUntil - Date.now()) / 1000)
+      });
     }
 
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      // Increment login attempts
+      await user.incLoginAttempts();
+      securityMonitor.logSecurityEvent({
+        type: 'failed_login',
+        email: email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        reason: 'invalid_password',
+        attempts: user.loginAttempts
+      });
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+
+    // Reset login attempts on successful login
+    await user.resetLoginAttempts();
 
     // Update last login
     user.lastLogin = new Date();
@@ -104,7 +141,7 @@ router.post('/login', loginValidation, handleValidationErrors, async (req, res) 
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    res.status(500).json({ error: 'Authentication service temporarily unavailable' });
   }
 });
 

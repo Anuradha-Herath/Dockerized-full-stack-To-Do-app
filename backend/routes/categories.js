@@ -6,7 +6,7 @@ const router = express.Router();
 // Get all categories for the authenticated user
 router.get('/', auth, async (req, res) => {
   try {
-    const categories = await Category.find({ user: req.userId }).sort({ createdAt: 1 });
+    const categories = await Category.find({ user: req.user._id }).sort({ createdAt: 1 });
     res.json(categories);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -30,7 +30,7 @@ router.post('/', auth, async (req, res) => {
 
     // Check if category already exists for this user
     const existingCategory = await Category.findOne({ 
-      user: req.userId, 
+      user: req.user._id, 
       name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }
     });
 
@@ -43,7 +43,7 @@ router.post('/', auth, async (req, res) => {
       name: name.trim(),
       color,
       icon,
-      user: req.userId
+      user: req.user._id
     });
 
     await category.save();
@@ -72,7 +72,7 @@ router.put('/:id', auth, async (req, res) => {
     const categoryId = req.params.id;
 
     // Find category and ensure it belongs to the authenticated user
-    const category = await Category.findOne({ _id: categoryId, user: req.userId });
+    const category = await Category.findOne({ _id: categoryId, user: req.user._id });
     
     if (!category) {
       return res.status(404).json({ error: 'Category not found' });
@@ -81,7 +81,7 @@ router.put('/:id', auth, async (req, res) => {
     // Check if new name conflicts with existing category
     if (name && name.trim() !== category.name) {
       const existingCategory = await Category.findOne({ 
-        user: req.userId, 
+        user: req.user._id, 
         name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
         _id: { $ne: categoryId }
       });
@@ -117,7 +117,7 @@ router.delete('/:id', auth, async (req, res) => {
     const categoryId = req.params.id;
 
     // Find category and ensure it belongs to the authenticated user
-    const category = await Category.findOne({ _id: categoryId, user: req.userId });
+    const category = await Category.findOne({ _id: categoryId, user: req.user._id });
     
     if (!category) {
       return res.status(404).json({ error: 'Category not found' });
@@ -131,7 +131,7 @@ router.delete('/:id', auth, async (req, res) => {
     // Check if there are tasks associated with this category
     const Task = require('../models/Task');
     const tasksCount = await Task.countDocuments({ 
-      user: req.userId, 
+      user: req.user._id, 
       category: categoryId 
     });
 
@@ -155,8 +155,8 @@ router.get('/stats', auth, async (req, res) => {
   try {
     const Task = require('../models/Task');
     
-    const categories = await Category.find({ user: req.userId });
-    const tasks = await Task.find({ user: req.userId });
+    const categories = await Category.find({ user: req.user._id });
+    const tasks = await Task.find({ user: req.user._id });
 
     const stats = {};
 

@@ -37,17 +37,23 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: callbackURL
-  }, async (accessToken, refreshToken, profile, done) => {
+    callbackURL: callbackURL,
+    passReqToCallback: true // Pass request to callback to access refresh token
+  }, async (req, accessToken, refreshToken, profile, done) => {
     try {
       // Check if user already exists with this Google ID
       let existingUser = await User.findOne({ googleId: profile.id });
       
       if (existingUser) {
-        // Update last login
+        // Update tokens and last login
         existingUser.lastLogin = new Date();
+        if (refreshToken) {
+          existingUser.googleRefreshToken = refreshToken;
+          existingUser.googleAccessToken = accessToken;
+          existingUser.googleTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+        }
         await existingUser.save();
-        return done(null, existingUser);
+        return done(null, existingUser, { accessToken, refreshToken });
       }
 
       // Check if user exists with same email
@@ -58,11 +64,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         existingUser.googleId = profile.id;
         existingUser.isEmailVerified = true;
         existingUser.lastLogin = new Date();
+        if (refreshToken) {
+          existingUser.googleRefreshToken = refreshToken;
+          existingUser.googleAccessToken = accessToken;
+          existingUser.googleTokenExpiry = new Date(Date.now() + 3600000);
+        }
         if (profile.photos && profile.photos[0]) {
           existingUser.avatar = profile.photos[0].value;
         }
         await existingUser.save();
-        return done(null, existingUser);
+        return done(null, existingUser, { accessToken, refreshToken });
       }
 
       // Create new user
@@ -72,12 +83,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         name: profile.displayName,
         avatar: profile.photos && profile.photos[0] ? profile.photos[0].value : null,
         isEmailVerified: true,
-        lastLogin: new Date()
+        lastLogin: new Date(),
+        googleRefreshToken: refreshToken || null,
+        googleAccessToken: accessToken || null,
+        googleTokenExpiry: refreshToken ? new Date(Date.now() + 3600000) : null
       });
 
       await newUser.save();
-      done(null, newUser);
+      done(null, newUser, { accessToken, refreshToken });
     } catch (error) {
+      console.error('Google OAuth strategy error:', error);
       done(error, null);
     }
   }));

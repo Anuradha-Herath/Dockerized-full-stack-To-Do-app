@@ -7,6 +7,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cron = require('node-cron');
+const session = require('express-session');
 const passport = require('./config/passport');
 const NotificationService = require('./services/NotificationService');
 
@@ -22,8 +23,18 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
       scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+      frameSrc: ["'none'"],
     },
   },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" }
 }));
 
 // Rate limiting - Skip in development environment
@@ -97,6 +108,23 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Session middleware for CSRF protection
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-super-secret-session-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
+    httpOnly: true,
+    maxAge: 30 * 60 * 1000, // 30 minutes
+    sameSite: 'lax' // CSRF protection
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Development logging middleware
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
@@ -105,8 +133,14 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Passport middleware
-app.use(passport.initialize());
+// OAuth redirect security middleware
+app.use('/auth/google', (req, res, next) => {
+  // Add security headers for OAuth flows
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // MongoDB connection
 if (!process.env.MONGO_URI) {
