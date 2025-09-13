@@ -30,10 +30,14 @@ passport.use(new JwtStrategy({
 
 // Google OAuth Strategy (only if Google credentials are provided)
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  const callbackURL = process.env.NODE_ENV === 'production' 
+    ? `${process.env.BACKEND_URL || 'https://dockerized-full-stack-to-do-app-backend.onrender.com'}/auth/google/callback`
+    : "/auth/google/callback";
+    
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/auth/google/callback"
+    callbackURL: callbackURL
   }, async (accessToken, refreshToken, profile, done) => {
     try {
       // Check if user already exists with this Google ID
