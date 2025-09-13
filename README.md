@@ -105,6 +105,15 @@ todo-app/
 - `PUT /api/tasks/:id` - Update a task
 - `DELETE /api/tasks/:id` - Delete a task
 
+### Notifications API
+- `GET /api/notifications` - Get all notifications
+- `GET /api/notifications/stats` - Get notification statistics
+- `GET /api/notifications/:id` - Get a specific notification
+- `PUT /api/notifications/:id/read` - Mark notification as read/unread
+- `PUT /api/notifications/mark-all-read` - Mark all notifications as read
+- `DELETE /api/notifications/:id` - Delete a notification
+- `DELETE /api/notifications/bulk-delete` - Bulk delete notifications
+
 ### Health Check
 - `GET /health` - Check API health status
 
@@ -186,13 +195,39 @@ NODE_ENV=production
 VITE_API_URL=http://localhost:5000
 ```
 
-## 📊 Service URLs & Ports
+## � Notification System
 
-| Service  | Internal Port | External Port | URL                    |
-|----------|---------------|---------------|------------------------|
-| Frontend | 3000          | 3000          | http://localhost:3000  |
-| Backend  | 5000          | 5000          | http://localhost:5000  |
-| MongoDB  | 27017         | 27017         | mongodb://localhost:27017 |
+The application includes a comprehensive notification system that keeps users informed about their tasks:
+
+### Notification Types
+- **Task Created**: When a new task is added
+- **Task Completed**: When a task is marked as complete
+- **Task Updated**: When task details are modified (priority, due date, etc.)
+- **Task Overdue**: When a task passes its due date
+- **Task Reminder**: Automatic reminders before due dates (24h, 12h, 6h, 1h)
+
+### Features
+- **Real-time Updates**: Notifications are created automatically when tasks change
+- **Smart Scheduling**: Background jobs check for overdue tasks and upcoming deadlines
+- **Unread Count**: Visual indicator shows number of unread notifications
+- **Management**: Mark individual or all notifications as read
+- **Auto-cleanup**: Old notifications are automatically removed after 30 days
+- **Rich Information**: Notifications include task details and timestamps
+
+### Technical Implementation
+- **Backend**: Node.js cron jobs for scheduled checks
+- **Database**: MongoDB collection for notification storage
+- **Frontend**: React context for state management and real-time updates
+- **API**: RESTful endpoints for notification CRUD operations
+
+### Notification Triggers
+- Task creation/update/completion
+- Due date changes
+- Priority modifications
+- Automatic overdue detection
+- Scheduled reminder checks (every 30 minutes)
+
+The notification system runs automatically in the background and requires no user configuration to start working.
 
 ## 🔍 Troubleshooting
 
@@ -252,6 +287,12 @@ curl http://localhost:3000/health    # Frontend
 - ✅ Docker containerization
 - ✅ Health monitoring
 - ✅ Production-ready setup
+- 🔔 **Real-time notifications system**
+  - Task creation, completion, and update notifications
+  - Overdue task alerts
+  - Upcoming task reminders (24h, 12h, 6h, 1h before due date)
+  - Notification management (mark as read/unread, delete)
+  - Automatic cleanup of old notifications
 
 ## 🔐 Security Features
 
