@@ -1,0 +1,76 @@
+# Production Docker Compose - Uses Docker Hub images
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-jammy
+    container_name: todo-mongodb-prod
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: todoapp
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - todo-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/todoapp --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend API - Using Docker Hub image
+  backend:
+    image: anuroxx/todo-app-backend:latest
+    container_name: todo-backend-prod
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/todoapp
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - todo-network
+    healthcheck:
+      test: curl -f http://localhost:5000/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Web App - Using Docker Hub image
+  frontend:
+    image: anuroxx/todo-app-frontend:latest
+    container_name: todo-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "80:3000"  # Changed to port 80 for production
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - todo-network
+
+# Networks
+networks:
+  todo-network:
+    driver: bridge
+    name: todo-app-production-network
+
+# Volumes
+volumes:
+  mongodb_data:
+    driver: local
+    name: todo-mongodb-prod-data
+  mongodb_config:
+    driver: local
+    name: todo-mongodb-prod-config
