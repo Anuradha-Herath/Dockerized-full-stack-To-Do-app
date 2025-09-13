@@ -19,15 +19,16 @@ services:
       - key: ALLOWED_ORIGINS
         value: https://dockerized-full-stack-to-do-app.onrender.com
 
-  - type: static
+  - type: web
     name: todo-frontend
     runtime: static
     buildCommand: npm run build
-    rootDir: ./frontend
-    plan: free
-    buildFilter:
-      paths:
-        - frontend/**
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
         value: https://dockerized-full-stack-to-do-app-backend.onrender.com
+
+databases:
+  - name: todo-mongodb
+    databaseName: todoapp
+    plan: free
