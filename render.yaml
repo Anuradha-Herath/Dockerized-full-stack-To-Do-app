@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: todo-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        fromDatabase:
+          name: todo-mongodb
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://todo-frontend-3kdf.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://todo-frontend-3kdf.onrender.com
+
+  - type: static
+    name: todo-frontend
+    runtime: static
+    buildCommand: npm run build
+    rootDir: ./frontend
+    plan: free
+    buildFilter:
+      paths:
+        - frontend/**
+    envVars:
+      - key: VITE_API_URL
+        value: https://dockerized-full-stack-to-do-app-backend.onrender.com
