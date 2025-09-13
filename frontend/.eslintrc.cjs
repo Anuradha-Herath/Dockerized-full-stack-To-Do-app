@@ -1,7 +1,8 @@
 module.exports = {
   env: {
     browser: true,
-    es2020: true
+    es2020: true,
+    node: true
   },
   extends: [
     'eslint:recommended',
@@ -32,5 +33,13 @@ module.exports = {
     react: {
       version: '18.3'
     }
-  }
+  },
+  overrides: [
+    {
+      files: ['**/*.config.js'],
+      env: {
+        node: true
+      }
+    }
+  ]
 }
