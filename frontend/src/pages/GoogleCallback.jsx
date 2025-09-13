@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 const GoogleCallback = () => {
   const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
@@ -35,9 +35,8 @@ const GoogleCallback = () => {
         const result = await handleGoogleCallback(token);
 
         if (result.success) {
-          setStatus('success');
-          setMessage('Google authentication successful! Redirecting...');
-          setTimeout(() => navigate('/dashboard'), 2000);
+          // Directly redirect to dashboard without showing success page
+          navigate('/dashboard');
         } else {
           setStatus('error');
           setMessage(result.error || 'Authentication failed');
@@ -60,17 +59,7 @@ const GoogleCallback = () => {
         {status === 'loading' && (
           <>
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Processing...</h2>
-            <p className="text-gray-600">{message}</p>
-          </>
-        )}
-
-        {status === 'success' && (
-          <>
-            <div className="p-3 bg-emerald-100 rounded-full inline-block mb-4">
-              <CheckCircle className="w-12 h-12 text-emerald-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Success!</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Signing you in...</h2>
             <p className="text-gray-600">{message}</p>
           </>
         )}
@@ -80,7 +69,7 @@ const GoogleCallback = () => {
             <div className="p-3 bg-red-100 rounded-full inline-block mb-4">
               <AlertCircle className="w-12 h-12 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Authentication Failed</h2>
             <p className="text-gray-600 mb-4">{message}</p>
             <button
               onClick={() => navigate('/auth')}
