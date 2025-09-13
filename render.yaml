@@ -15,9 +15,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://todo-frontend-3kdf.onrender.com
+        value: https://dockerized-full-stack-to-do-app.onrender.com
       - key: ALLOWED_ORIGINS
-        value: https://todo-frontend-3kdf.onrender.com
+        value: https://dockerized-full-stack-to-do-app.onrender.com
 
   - type: static
     name: todo-frontend
