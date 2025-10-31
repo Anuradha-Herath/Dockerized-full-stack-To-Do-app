@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-mongodb
+  namespace: todo-app
+  labels:
+    app: todo-mongodb
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-mongodb
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: todo-mongodb
+        tier: database
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo:7-jammy
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        env:
+        - name: MONGO_INITDB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: todo-backend-config
+              key: MONGODB_DATABASE
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: todo-mongodb-secrets
+              key: MONGO_INITDB_ROOT_USERNAME
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: todo-mongodb-secrets
+              key: MONGO_INITDB_ROOT_PASSWORD
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+        - name: mongodb-config
+          mountPath: /data/configdb
+        livenessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+            - localhost:27017/admin
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+            - localhost:27017/admin
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: mongodb-data
+        persistentVolumeClaim:
+          claimName: mongodb-data-pvc
+      - name: mongodb-config
+        persistentVolumeClaim:
+          claimName: mongodb-config-pvc

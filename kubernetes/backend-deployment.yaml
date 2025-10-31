@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-backend
+  namespace: todo-app
+  labels:
+    app: todo-backend
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: todo-backend
+      tier: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: todo-backend
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: anuroxx/todo-app-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: todo-backend-config
+              key: NODE_ENV
+        - name: MONGODB_URI
+          valueFrom:
+            configMapKeyRef:
+              name: todo-backend-config
+              key: MONGODB_URI
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: todo-backend-config
+              key: PORT
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: JWT_SECRET
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: GOOGLE_CLIENT_ID
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: GOOGLE_CLIENT_SECRET
+        - name: GOOGLE_CALLBACK_URL
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: GOOGLE_CALLBACK_URL
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - todo-backend
+              topologyKey: kubernetes.io/hostname
